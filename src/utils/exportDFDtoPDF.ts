@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { numberToCurrency } from "./validators";
 
 interface Material {
   id: string;
@@ -70,7 +71,7 @@ export function exportDFDtoPDF(data: DFDData) {
     ["Número UNIDADE GESTORA:", data.numero_uasg],
     ["Área Requisitante:", data.area_requisitante],
     ["Prioridade:", data.prioridade || "-"],
-    ["Valor Total:", data.valor_total ? `R$ ${data.valor_total.toFixed(2)}` : "R$ 0,00"],
+    ["Valor Total:", data.valor_total ? numberToCurrency(data.valor_total) : "R$ 0,00"],
   ];
 
   autoTable(doc, {
@@ -136,8 +137,8 @@ export function exportDFDtoPDF(data: DFDData) {
       m.descricao.substring(0, 40) + (m.descricao.length > 40 ? "..." : ""),
       m.quantidade.toString(),
       m.unidade_medida,
-      `R$ ${m.valor_unitario.toFixed(2)}`,
-      `R$ ${m.valor_total.toFixed(2)}`,
+      numberToCurrency(m.valor_unitario),
+      numberToCurrency(m.valor_total),
     ]);
 
     autoTable(doc, {
