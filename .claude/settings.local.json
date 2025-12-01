@@ -10,7 +10,11 @@
       "Bash(git push:*)",
       "Bash(npm uninstall:*)",
       "Bash(npm run build:*)",
-      "Bash(powershell -Command \"Get-ChildItem -Path ''plano-contratual-simplificado-main'' -Exclude ''.git'' | Move-Item -Destination ''.'' -Force\")"
+      "Bash(powershell -Command \"Get-ChildItem -Path ''plano-contratual-simplificado-main'' -Exclude ''.git'' | Move-Item -Destination ''.'' -Force\")",
+      "Bash(npm install:*)",
+      "Bash(npx supabase --version)",
+      "Bash(npx supabase:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

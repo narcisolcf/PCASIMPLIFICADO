@@ -508,7 +508,7 @@ export function MateriaisServicos({ dfdId, onTotalChange, localMateriais = [], o
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground mt-1">
-                    O código do item será gerado automaticamente pelo sistema
+                    ℹ️ Código do item será gerado automaticamente no formato MS-XXXXXX
                   </p>
                 </div>
 
