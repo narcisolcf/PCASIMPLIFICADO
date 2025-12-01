@@ -7,7 +7,10 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git branch:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm run build:*)",
+      "Bash(powershell -Command \"Get-ChildItem -Path ''plano-contratual-simplificado-main'' -Exclude ''.git'' | Move-Item -Destination ''.'' -Force\")"
     ],
     "deny": [],
     "ask": []
