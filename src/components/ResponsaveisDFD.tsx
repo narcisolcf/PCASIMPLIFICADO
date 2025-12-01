@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Edit } from "lucide-react";
 import { useFuncoes } from "@/hooks/useFuncoes";
 import { useCargos } from "@/hooks/useCargos";
+import { useDocumentValidation } from "@/hooks/useDocumentValidation";
 
 interface Responsavel {
   id: string;
@@ -41,6 +42,7 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
   const { toast } = useToast();
   const { funcoes, addFuncao, reload: reloadFuncoes } = useFuncoes();
   const { cargos, addCargo, reload: reloadCargos } = useCargos();
+  const { validateCPF, formatCPF } = useDocumentValidation();
 
   const responsaveisExibidos = dfdId ? responsaveis : localResponsaveis;
   const isLocalMode = !dfdId;
@@ -89,17 +91,6 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
 
     setResponsaveis(responsaveisFormatados);
   }, [dfdId]);
-
-  const formatCPF = (value: string) => {
-    const cleaned = value.replace(/\D/g, "");
-    if (cleaned.length <= 11) {
-      return cleaned
-        .replace(/(\d{3})(\d)/, "$1.$2")
-        .replace(/(\d{3})(\d)/, "$1.$2")
-        .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-    }
-    return value;
-  };
 
   const handleCPFChange = (value: string) => {
     const formatted = formatCPF(value);
@@ -155,6 +146,16 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
       toast({
         title: "Erro",
         description: "CPF deve conter 11 dígitos",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validação de CPF usando algoritmo módulo 11
+    if (!validateCPF(cpfLimpo)) {
+      toast({
+        title: "Erro",
+        description: "CPF inválido. Verifique os dígitos verificadores.",
         variant: "destructive",
       });
       return;

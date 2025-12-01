@@ -33,8 +33,60 @@ const NovoDFD = () => {
   const [valorTotal, setValorTotal] = useState(0);
   const [localMateriais, setLocalMateriais] = useState<any[]>([]);
   const [localResponsaveis, setLocalResponsaveis] = useState<any[]>([]);
+  const [novaAreaDialog, setNovaAreaDialog] = useState(false);
+  const [novaAreaNome, setNovaAreaNome] = useState("");
+  const [novaAreaOrcamento, setNovaAreaOrcamento] = useState("");
   const { uasgs } = useUASGs();
-  const { areas } = useAreasRequisitantes(selectedUasgId || undefined);
+  const { areas, reload: reloadAreas } = useAreasRequisitantes(selectedUasgId || undefined);
+
+  const handleCreateArea = async () => {
+    if (!selectedUasgId) {
+      toast.error("Selecione uma UASG primeiro");
+      return;
+    }
+
+    if (!novaAreaNome || !novaAreaOrcamento) {
+      toast.error("Preencha todos os campos");
+      return;
+    }
+
+    try {
+      const uasg = uasgs.find(u => u.id === selectedUasgId);
+      if (!uasg) return;
+
+      const orcamento = parseFloat(novaAreaOrcamento.replace(/\./g, "").replace(",", "."));
+
+      const { data, error } = await supabase
+        .from("areas_requisitantes")
+        .insert([{
+          numero_uasg: uasg.numero_uasg,
+          uasg_id: selectedUasgId,
+          nome: novaAreaNome,
+          disponibilidade_orcamentaria: orcamento,
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        if (error.message.includes("excede o orçamento da UASG")) {
+          toast.error("Orçamento excede o disponível na UASG");
+        } else {
+          throw error;
+        }
+        return;
+      }
+
+      toast.success("Área requisitante criada com sucesso!");
+      setNovaAreaDialog(false);
+      setNovaAreaNome("");
+      setNovaAreaOrcamento("");
+      reloadAreas();
+      setSelectedAreaId(data.id);
+    } catch (error) {
+      console.error("Erro ao criar área:", error);
+      toast.error("Erro ao criar área requisitante");
+    }
+  };
 
   const handleSave = async () => {
     if (!selectedUasgId || !selectedAreaId) {
@@ -332,22 +384,32 @@ const NovoDFD = () => {
                   </div>
                   <div>
                     <Label>Área Requisitante *</Label>
-                    <Select 
-                      value={selectedAreaId}
-                      onValueChange={setSelectedAreaId}
-                      disabled={!selectedUasgId || !!dfdId}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione uma Área Requisitante" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {areas.map((area) => (
-                          <SelectItem key={area.id} value={area.id}>
-                            {area.numero} - {area.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex gap-2">
+                      <Select
+                        value={selectedAreaId}
+                        onValueChange={setSelectedAreaId}
+                        disabled={!selectedUasgId || !!dfdId}
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Selecione uma Área Requisitante" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {areas.map((area) => (
+                            <SelectItem key={area.id} value={area.id}>
+                              {area.numero} - {area.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setNovaAreaDialog(true)}
+                        disabled={!selectedUasgId || !!dfdId}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
@@ -471,6 +533,51 @@ const NovoDFD = () => {
           </div>
         </div>
       </main>
+
+      {/* Dialog para criar nova área requisitante */}
+      <Dialog open={novaAreaDialog} onOpenChange={setNovaAreaDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nova Área Requisitante</DialogTitle>
+            <DialogDescription>
+              Crie uma nova área requisitante para a UASG selecionada
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="nome-area">Nome da Área *</Label>
+              <Input
+                id="nome-area"
+                value={novaAreaNome}
+                onChange={(e) => setNovaAreaNome(e.target.value)}
+                placeholder="Ex: Departamento de TI"
+              />
+            </div>
+            <div>
+              <Label htmlFor="orcamento-area">Disponibilidade Orçamentária (R$) *</Label>
+              <Input
+                id="orcamento-area"
+                value={novaAreaOrcamento}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "");
+                  const formatted = (parseInt(value) / 100 || 0).toLocaleString("pt-BR", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  });
+                  setNovaAreaOrcamento(formatted);
+                }}
+                placeholder="0,00"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNovaAreaDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateArea}>Criar Área</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
