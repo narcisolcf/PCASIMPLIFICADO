@@ -1,0 +1,1 @@
+ALTER TABLE public.agentes_publicos ADD COLUMN IF NOT EXISTS email_corporativo TEXT
