@@ -198,7 +198,7 @@ const Consolidacao = () => {
                           <TableHeader>
                             <TableRow>
                               <TableHead>DFD</TableHead>
-                              <TableHead>UASG</TableHead>
+                              <TableHead>UNIDADE GESTORA</TableHead>
                               <TableHead>Área requisitante</TableHead>
                               <TableHead>Descrição sucinta do objeto</TableHead>
                               <TableHead>Data da conclusão da contratação</TableHead>

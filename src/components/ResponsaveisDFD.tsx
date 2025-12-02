@@ -42,8 +42,11 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
   const { toast } = useToast();
   const { funcoes, addFuncao, reload: reloadFuncoes } = useFuncoes();
   const { cargos, addCargo, reload: reloadCargos } = useCargos();
-  const { validateCPF, formatCPF } = useDocumentValidation();
+  const { validateCPFPure, formatCPF } = useDocumentValidation();
 
+  // PADRÃO LOCAL-FIRST:
+  // - Se dfdId for null: opera em modo local (memória) usando localResponsaveis
+  // - Se dfdId existir: opera com banco de dados usando responsaveis do Supabase
   const responsaveisExibidos = dfdId ? responsaveis : localResponsaveis;
   const isLocalMode = !dfdId;
 
@@ -92,9 +95,43 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
     setResponsaveis(responsaveisFormatados);
   }, [dfdId]);
 
+  // Máscara de CPF: formata enquanto digita (000.000.000-00)
   const handleCPFChange = (value: string) => {
-    const formatted = formatCPF(value);
+    // Remove tudo que não é número
+    const apenasNumeros = value.replace(/\D/g, "");
+    // Limita a 11 dígitos
+    const limitado = apenasNumeros.slice(0, 11);
+    // Aplica a formatação automática
+    const formatted = formatCPF(limitado);
     setFormData({ ...formData, cpf: formatted });
+  };
+
+  // Máscara de Telefone: (00) 00000-0000
+  const handleTelefoneChange = (value: string) => {
+    const apenasNumeros = value.replace(/\D/g, "").slice(0, 11);
+    let formatted = apenasNumeros;
+
+    if (apenasNumeros.length > 10) {
+      // Celular: (00) 00000-0000
+      formatted = apenasNumeros.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+    } else if (apenasNumeros.length > 6) {
+      // Parcial
+      formatted = apenasNumeros.replace(/(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3");
+    } else if (apenasNumeros.length > 2) {
+      formatted = apenasNumeros.replace(/(\d{2})(\d{0,5})/, "($1) $2");
+    }
+
+    setFormData({ ...formData, telefone: formatted });
+  };
+
+  const formatTelefone = (tel: string) => {
+    const numeros = tel.replace(/\D/g, "");
+    if (numeros.length === 11) {
+      return numeros.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+    } else if (numeros.length === 10) {
+      return numeros.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
+    }
+    return tel;
   };
 
   const handleAddNovaFuncao = async () => {
@@ -109,6 +146,18 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
 
     const success = await addFuncao(novaFuncaoNome.trim());
     if (success) {
+      // Recarregar a lista de funções
+      await reloadFuncoes();
+
+      // Auto-selecionar a nova função criada
+      // Aguardar um momento para garantir que a lista foi atualizada
+      setTimeout(() => {
+        const novaFuncao = funcoes.find(f => f.nome === novaFuncaoNome.trim());
+        if (novaFuncao) {
+          setFormData(prev => ({ ...prev, funcao_id: novaFuncao.id }));
+        }
+      }, 100);
+
       setNovaFuncaoDialog(false);
       setNovaFuncaoNome("");
     }
@@ -126,6 +175,17 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
 
     const success = await addCargo(novoCargoNome.trim());
     if (success) {
+      // Recarregar a lista de cargos
+      await reloadCargos();
+
+      // Auto-selecionar o novo cargo criado
+      setTimeout(() => {
+        const novoCargo = cargos.find(c => c.nome === novoCargoNome.trim());
+        if (novoCargo) {
+          setFormData(prev => ({ ...prev, cargo_id: novoCargo.id }));
+        }
+      }, 100);
+
       setNovoCargoDialog(false);
       setNovoCargoNome("");
     }
@@ -152,7 +212,7 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
     }
 
     // Validação de CPF usando algoritmo módulo 11
-    if (!validateCPF(cpfLimpo)) {
+    if (!validateCPFPure(cpfLimpo)) {
       toast({
         title: "Erro",
         description: "CPF inválido. Verifique os dígitos verificadores.",
@@ -164,7 +224,8 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
     const funcaoSelecionada = funcoes.find(f => f.id === formData.funcao_id);
     const cargoSelecionado = cargos.find(c => c.id === formData.cargo_id);
 
-    // Modo local
+    // MODO LOCAL (DFD não foi salvo ainda)
+    // Operações são feitas apenas em memória
     if (isLocalMode) {
       const novoResponsavel: Responsavel = {
         id: editingId || `temp-${Date.now()}`,
@@ -175,26 +236,31 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
         nome: formData.nome,
         cpf: cpfLimpo,
         email: formData.email || null,
-        telefone: formData.telefone || null,
+        telefone: formData.telefone.replace(/\D/g, "") || null,
       };
 
       let novosResponsaveisLocais: Responsavel[];
       if (editingId) {
+        // Editar responsável existente em memória
         novosResponsaveisLocais = localResponsaveis.map(r => r.id === editingId ? novoResponsavel : r);
         toast({ title: "Sucesso", description: "Responsável atualizado" });
       } else {
+        // Adicionar novo responsável em memória
         novosResponsaveisLocais = [...localResponsaveis, novoResponsavel];
         toast({ title: "Sucesso", description: "Responsável adicionado" });
       }
 
+      // Atualizar estado pai
       onLocalResponsaveisChange?.(novosResponsaveisLocais);
+
       setDialogOpen(false);
       resetForm();
       return;
     }
 
-    // Modo com banco
-    try {
+    // MODO BANCO DE DADOS (DFD já foi salvo)
+    // Operações são feitas diretamente no Supabase
+    try{
       if (editingId && !editingId.startsWith('temp-')) {
         const { error } = await supabase
           .from("responsaveis")
@@ -206,27 +272,24 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
             nome: formData.nome,
             cpf: cpfLimpo,
             email: formData.email || null,
-            telefone: formData.telefone || null,
+            telefone: formData.telefone.replace(/\D/g, "") || null,
           })
           .eq("id", editingId);
 
         if (error) throw error;
         toast({ title: "Sucesso", description: "Responsável atualizado" });
       } else {
-        // Obter o nome da função para compatibilidade
-        const funcaoNome = funcaoSelecionada?.nome || "";
-        
         const { error } = await supabase.from("responsaveis").insert([
           {
             dfd_id: dfdId!,
-            funcao: funcaoNome,
+            funcao: funcaoSelecionada?.nome || "",
             funcao_id: formData.funcao_id,
             cargo: cargoSelecionado?.nome || null,
             cargo_id: formData.cargo_id || null,
             nome: formData.nome,
             cpf: cpfLimpo,
             email: formData.email || null,
-            telefone: formData.telefone || null,
+            telefone: formData.telefone.replace(/\D/g, "") || null,
           },
         ]);
 
@@ -255,12 +318,13 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
       nome: responsavel.nome,
       cpf: formatCPF(responsavel.cpf),
       email: responsavel.email || "",
-      telefone: responsavel.telefone || "",
+      telefone: responsavel.telefone ? formatTelefone(responsavel.telefone) : "",
     });
     setDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
+    // MODO LOCAL: Remover apenas da memória
     if (isLocalMode) {
       const novosResponsaveisLocais = localResponsaveis.filter(r => r.id !== id);
       onLocalResponsaveisChange?.(novosResponsaveisLocais);
@@ -268,6 +332,7 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
       return;
     }
 
+    // MODO BANCO: Remover do Supabase
     try {
       const { error } = await supabase.from("responsaveis").delete().eq("id", id);
 
@@ -318,7 +383,7 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
                 }}
               >
                 <Plus className="h-4 w-4" />
-                Criar campo
+                Adicionar Responsável
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -345,6 +410,9 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
                       <DialogContent className="sm:max-w-md">
                         <DialogHeader>
                           <DialogTitle>Adicionar Nova Função</DialogTitle>
+                          <DialogDescription>
+                            A nova função será automaticamente selecionada após criação
+                          </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
                           <div>
@@ -353,6 +421,12 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
                               value={novaFuncaoNome}
                               onChange={(e) => setNovaFuncaoNome(e.target.value)}
                               placeholder="Ex: Coordenador de Projetos"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddNovaFuncao();
+                                }
+                              }}
                             />
                           </div>
                         </div>
@@ -399,6 +473,9 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
                       placeholder="000.000.000-00"
                       maxLength={14}
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Digite apenas números, a formatação é automática
+                    </p>
                   </div>
                 </div>
 
@@ -415,6 +492,9 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
                       <DialogContent className="sm:max-w-md">
                         <DialogHeader>
                           <DialogTitle>Adicionar Novo Cargo</DialogTitle>
+                          <DialogDescription>
+                            O novo cargo será automaticamente selecionado após criação
+                          </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
                           <div>
@@ -423,6 +503,12 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
                               value={novoCargoNome}
                               onChange={(e) => setNovoCargoNome(e.target.value)}
                               placeholder="Ex: Supervisor de Qualidade"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddNovoCargo();
+                                }
+                              }}
                             />
                           </div>
                         </div>
@@ -440,7 +526,7 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
                     onValueChange={(value) => setFormData({ ...formData, cargo_id: value })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione um cargo" />
+                      <SelectValue placeholder="Selecione um cargo (opcional)" />
                     </SelectTrigger>
                     <SelectContent>
                       {cargos.map((cargo) => (
@@ -466,13 +552,13 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
                     <Label>Telefone</Label>
                     <Input
                       value={formData.telefone}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, "").slice(0, 11);
-                        setFormData({ ...formData, telefone: value });
-                      }}
+                      onChange={(e) => handleTelefoneChange(e.target.value)}
                       placeholder="(00) 00000-0000"
                       maxLength={15}
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Digite apenas números
+                    </p>
                   </div>
                 </div>
               </div>
@@ -513,7 +599,7 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
               <TableBody>
                 {responsaveisExibidos.map((responsavel) => (
                   <TableRow key={responsavel.id}>
-                    <TableCell>{responsavel.funcao}</TableCell>
+                    <TableCell className="font-medium">{responsavel.funcao}</TableCell>
                     <TableCell>{responsavel.nome}</TableCell>
                     <TableCell className="font-mono text-xs">{formatCPF(responsavel.cpf)}</TableCell>
                     <TableCell>{responsavel.cargo || "-"}</TableCell>
@@ -522,7 +608,7 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
                         <div className="text-xs">{responsavel.email}</div>
                       )}
                       {responsavel.telefone && (
-                        <div className="text-xs">{responsavel.telefone}</div>
+                        <div className="text-xs">{formatTelefone(responsavel.telefone)}</div>
                       )}
                       {!responsavel.email && !responsavel.telefone && "-"}
                     </TableCell>

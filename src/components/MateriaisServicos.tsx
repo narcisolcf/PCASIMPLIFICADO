@@ -42,7 +42,9 @@ export function MateriaisServicos({ dfdId, onTotalChange, localMateriais = [], o
   const { toast } = useToast();
   const { itens: catalogoItens } = useCatalogoItens();
 
-  // Usar materiais locais se DFD não foi salvo ainda
+  // PADRÃO LOCAL-FIRST:
+  // - Se dfdId for null: opera em modo local (memória) usando localMateriais
+  // - Se dfdId existir: opera com banco de dados usando materiais do Supabase
   const materiaisExibidos = dfdId ? materiais : localMateriais;
   const isLocalMode = !dfdId;
 
@@ -168,12 +170,13 @@ export function MateriaisServicos({ dfdId, onTotalChange, localMateriais = [], o
   };
 
   const salvarMaterial = async (quantidade: number, valorUnitario: number, valorTotal: number) => {
-    // Se está em modo local (DFD não salvo)
+    // MODO LOCAL (DFD não foi salvo ainda)
+    // Operações são feitas apenas em memória (localMateriais)
     if (isLocalMode) {
       const novoMaterial: Material = {
         id: editingId || `temp-${Date.now()}`,
         tipo: formData.tipo,
-        codigo_item: null, // Será gerado pelo banco
+        codigo_item: null, // Será gerado pela trigger do banco quando DFD for salvo
         descricao: formData.descricao,
         quantidade,
         unidade_medida: formData.unidade_medida,
@@ -184,25 +187,29 @@ export function MateriaisServicos({ dfdId, onTotalChange, localMateriais = [], o
 
       let novosMateriaisLocais: Material[];
       if (editingId) {
+        // Editar item existente em memória
         novosMateriaisLocais = localMateriais.map(m => m.id === editingId ? novoMaterial : m);
         toast({ title: "Sucesso", description: "Material/serviço atualizado" });
       } else {
+        // Adicionar novo item em memória
         novosMateriaisLocais = [...localMateriais, novoMaterial];
         toast({ title: "Sucesso", description: "Material/serviço adicionado" });
       }
 
+      // Atualizar estado pai
       onLocalMateriaisChange?.(novosMateriaisLocais);
-      
-      // Calcular total
+
+      // Calcular e notificar valor total
       const total = novosMateriaisLocais.reduce((acc, m) => acc + (m.valor_total || 0), 0);
       onTotalChange?.(total);
-      
+
       setDialogOpen(false);
       resetForm();
       return;
     }
 
-    // Modo com DFD salvo - salvar no banco
+    // MODO BANCO DE DADOS (DFD já foi salvo)
+    // Operações são feitas diretamente no Supabase
     try {
       if (editingId && !editingId.startsWith('temp-')) {
         const { error } = await supabase
@@ -265,19 +272,19 @@ export function MateriaisServicos({ dfdId, onTotalChange, localMateriais = [], o
   };
 
   const handleDelete = async (id: string) => {
-    // Modo local
+    // MODO LOCAL: Remover apenas da memória
     if (isLocalMode) {
       const novosMateriaisLocais = localMateriais.filter(m => m.id !== id);
       onLocalMateriaisChange?.(novosMateriaisLocais);
-      
+
       const total = novosMateriaisLocais.reduce((acc, m) => acc + (m.valor_total || 0), 0);
       onTotalChange?.(total);
-      
+
       toast({ title: "Sucesso", description: "Material/serviço removido" });
       return;
     }
 
-    // Modo com banco
+    // MODO BANCO: Remover do Supabase
     try {
       const { error } = await supabase.from("materiais_servicos").delete().eq("id", id);
 
@@ -374,9 +381,9 @@ export function MateriaisServicos({ dfdId, onTotalChange, localMateriais = [], o
       });
     }
 
-
+    // MODO LOCAL: Adicionar múltiplos itens em memória
     if (isLocalMode) {
-      // Modo local: acumular todos os novos materiais de uma vez
+      // Acumular todos os novos materiais de uma vez
       const novosMateriais = itensParaAdicionar.map(item => {
         const valorUnitario = item.valor_unitario_referencia || 0;
         const quantidade = 1;
@@ -395,15 +402,15 @@ export function MateriaisServicos({ dfdId, onTotalChange, localMateriais = [], o
         } as Material;
       });
 
-      // Adicionar todos de uma vez
+      // Adicionar todos de uma vez ao estado local
       const novosMateriaisLocais = [...localMateriais, ...novosMateriais];
       onLocalMateriaisChange?.(novosMateriaisLocais);
-      
-      // Calcular total
+
+      // Calcular e notificar total
       const total = novosMateriaisLocais.reduce((acc, m) => acc + (m.valor_total || 0), 0);
       onTotalChange?.(total);
     } else {
-      // Modo banco: inserir todos de uma vez
+      // MODO BANCO: Inserir múltiplos itens no Supabase de uma vez
       const materiaisParaInserir = itensParaAdicionar.map(item => {
         const valorUnitario = item.valor_unitario_referencia || 0;
         const quantidade = 1;
@@ -677,7 +684,11 @@ export function MateriaisServicos({ dfdId, onTotalChange, localMateriais = [], o
                 {materiaisExibidos.map((material) => (
                   <TableRow key={material.id}>
                     <TableCell className="font-mono text-xs">
-                      {material.codigo_item || (isLocalMode ? "Aguardando" : "-")}
+                      {isLocalMode ? (
+                        <span className="text-muted-foreground italic">Aguardando</span>
+                      ) : (
+                        material.codigo_item || "-"
+                      )}
                     </TableCell>
                     <TableCell>{material.tipo}</TableCell>
                     <TableCell className="max-w-xs truncate">{material.descricao}</TableCell>

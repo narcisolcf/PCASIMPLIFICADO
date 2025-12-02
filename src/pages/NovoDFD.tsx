@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Calendar as CalendarIcon, Save, FileDown } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Save, FileDown, Plus } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -41,7 +42,7 @@ const NovoDFD = () => {
 
   const handleCreateArea = async () => {
     if (!selectedUasgId) {
-      toast.error("Selecione uma UASG primeiro");
+      toast.error("Selecione uma UNIDADE GESTORA primeiro");
       return;
     }
 
@@ -69,7 +70,7 @@ const NovoDFD = () => {
 
       if (error) {
         if (error.message.includes("excede o orçamento da UASG")) {
-          toast.error("Orçamento excede o disponível na UASG");
+          toast.error("Orçamento excede o disponível na UNIDADE GESTORA");
         } else {
           throw error;
         }
@@ -89,6 +90,7 @@ const NovoDFD = () => {
   };
 
   const handleSave = async () => {
+    // Validação 1: Campos obrigatórios
     if (!selectedUasgId || !selectedAreaId) {
       toast.error("Selecione a UNIDADE GESTORA e a Área Requisitante antes de salvar");
       return;
@@ -110,6 +112,7 @@ const NovoDFD = () => {
       const area = areas.find(a => a.id === selectedAreaId);
       if (!area) return;
 
+      // Passo 1: Criar o DFD no Supabase
       const { data, error } = await supabase
         .from("dfds")
         .insert([
@@ -130,19 +133,21 @@ const NovoDFD = () => {
 
       if (error) throw error;
 
-      setDfdId(data.id);
+      // Passo 2: Pegar o ID retornado
+      const novoDfdId = data.id;
 
-      // Salvar materiais/serviços locais no banco
+      // Passo 3: Fazer INSERT em lote de materiais/serviços
       if (localMateriais.length > 0) {
         const materiaisParaSalvar = localMateriais.map(m => ({
-          dfd_id: data.id,
+          dfd_id: novoDfdId,
           tipo: m.tipo,
           descricao: m.descricao,
           quantidade: m.quantidade,
           unidade_medida: m.unidade_medida,
           valor_unitario: m.valor_unitario,
-          valor_total: m.valor_total,
           justificativa: m.justificativa,
+          // Não incluir codigo_item - será gerado pela trigger do banco
+          // Não incluir valor_total - será calculado automaticamente
         }));
 
         const { error: materiaisError } = await supabase
@@ -151,13 +156,14 @@ const NovoDFD = () => {
 
         if (materiaisError) {
           console.error("Erro ao salvar materiais:", materiaisError);
+          throw materiaisError;
         }
       }
 
-      // Salvar responsáveis locais no banco
+      // Passo 3: Fazer INSERT em lote de responsáveis
       if (localResponsaveis.length > 0) {
         const responsaveisParaSalvar = localResponsaveis.map(r => ({
-          dfd_id: data.id,
+          dfd_id: novoDfdId,
           funcao: r.funcao,
           funcao_id: r.funcao_id,
           cargo: r.cargo,
@@ -174,13 +180,21 @@ const NovoDFD = () => {
 
         if (responsaveisError) {
           console.error("Erro ao salvar responsáveis:", responsaveisError);
+          throw responsaveisError;
         }
       }
+
+      // Passo 4: Limpar estados locais
+      setLocalMateriais([]);
+      setLocalResponsaveis([]);
+
+      // Passo 5: Atualizar dfdId (muda status para "Rascunho" e trava campos)
+      setDfdId(novoDfdId);
 
       toast.success("DFD salvo com sucesso! Todos os dados foram registrados no sistema.");
     } catch (error) {
       console.error("Erro ao salvar DFD:", error);
-      toast.error("Erro ao salvar DFD");
+      toast.error("Erro ao salvar DFD. Verifique os dados e tente novamente.");
     } finally {
       setSaving(false);
     }
@@ -540,7 +554,7 @@ const NovoDFD = () => {
           <DialogHeader>
             <DialogTitle>Nova Área Requisitante</DialogTitle>
             <DialogDescription>
-              Crie uma nova área requisitante para a UASG selecionada
+              Crie uma nova área requisitante para a UNIDADE GESTORA selecionada
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
