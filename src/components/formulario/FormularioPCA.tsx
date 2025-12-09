@@ -1,7 +1,8 @@
 /**
- * Componente Principal: Formulário PCA
+ * Componente Principal: Formulário PCA (Adaptado para react-hook-form)
  * Gerencia todo o fluxo de preenchimento e envio da Requisição PCA
- * Adaptado do MVP para integração com Supabase
+ *
+ * @version 2.0 - Refatorado para usar react-hook-form + Controller
  */
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,27 +13,26 @@ import { ItemContratacao } from "./ItemContratacao";
 import { useFormularioPCA } from "@/hooks/useFormularioPCA";
 
 export function FormularioPCA() {
+  // Novo hook API com react-hook-form
   const {
-    requisitante,
-    itens,
-    erros,
+    form,
+    itemsField,
     enviando,
     enviado,
-    resultadoEnvio,
-    setRequisitante,
-    adicionarItem,
-    atualizarItem,
-    removerItem,
-    enviarFormulario,
+    resultado,
+    submitPCA,
     resetarFormulario,
+    adicionarItem,
+    removerItem,
+    calcularValorTotal,
   } = useFormularioPCA();
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    await enviarFormulario();
-  }
+  // Watch current form values for display
+  const requisitante = form.watch("requisitante");
+  const itens = form.watch("itens");
 
-  const valorTotalGeral = itens.reduce((acc, item) => acc + item.valorTotal, 0);
+  // Calculate total value from watched items
+  const valorTotalGeral = itens.reduce((acc, item) => acc + (item.valorTotal || 0), 0);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -42,7 +42,7 @@ export function FormularioPCA() {
   };
 
   // Tela de sucesso
-  if (enviado && resultadoEnvio) {
+  if (enviado && resultado) {
     return (
       <div className="max-w-4xl mx-auto">
         <Card className="border-green-200 bg-green-50">
@@ -54,7 +54,7 @@ export function FormularioPCA() {
                   Requisição PCA Enviada com Sucesso!
                 </CardTitle>
                 <CardDescription className="text-green-700 mt-2">
-                  {resultadoEnvio.mensagem}
+                  {resultado.mensagem}
                 </CardDescription>
               </div>
             </div>
@@ -66,16 +66,16 @@ export function FormularioPCA() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">ID da Requisição:</span>
-                  <span className="font-mono font-medium">{resultadoEnvio.dados?.pcaId}</span>
+                  <span className="font-mono font-medium">{resultado.dados?.pcaId}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Número de Itens:</span>
-                  <span className="font-medium">{resultadoEnvio.dados?.numeroItens}</span>
+                  <span className="font-medium">{resultado.dados?.numeroItens}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Valor Total:</span>
                   <span className="font-medium text-green-700">
-                    {formatCurrency(resultadoEnvio.dados?.valorTotal || 0)}
+                    {formatCurrency(resultado.dados?.valorTotal || 0)}
                   </span>
                 </div>
               </div>
@@ -92,15 +92,11 @@ export function FormularioPCA() {
     );
   }
 
-  // Formulário principal
+  // Formulário principal com react-hook-form submission
   return (
-    <form onSubmit={handleSubmit} className="max-w-6xl mx-auto">
+    <form onSubmit={form.handleSubmit(submitPCA)} className="max-w-6xl mx-auto">
       {/* Seção 1: Dados do Requisitante */}
-      <DadosRequisitante
-        dados={requisitante}
-        onChange={setRequisitante}
-        erros={erros.requisitante}
-      />
+      <DadosRequisitante form={form} />
 
       {/* Seção 2: Itens a Contratar */}
       <Card className="mb-6">
@@ -112,14 +108,15 @@ export function FormularioPCA() {
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {itens.map((item, index) => (
+          {itemsField.fields.map((field, index) => (
             <ItemContratacao
-              key={item.id}
-              item={item}
+              key={field.id}
+              form={form}
+              index={index}
               numero={index + 1}
-              onChange={(itemAtualizado) => atualizarItem(index, itemAtualizado)}
               onRemover={() => removerItem(index)}
-              podeRemover={itens.length > 1}
+              podeRemover={itemsField.fields.length > 1}
+              calcularValorTotal={calcularValorTotal}
             />
           ))}
 
@@ -138,26 +135,13 @@ export function FormularioPCA() {
         </CardContent>
       </Card>
 
-      {/* Erros Gerais */}
-      {erros.geral && (
+      {/* Erros de Formulário Geral (exibidos pelo react-hook-form) */}
+      {form.formState.errors.itens && (
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Erro de Validação</AlertTitle>
-          <AlertDescription>{erros.geral}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* Erros de Itens */}
-      {erros.itens && erros.itens.filter((e) => e).length > 0 && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Erros nos Itens</AlertTitle>
+          <AlertTitle>Erros de Validação</AlertTitle>
           <AlertDescription>
-            <ul className="list-disc list-inside space-y-1">
-              {erros.itens.filter((e) => e).map((erro, index) => (
-                <li key={index}>{erro}</li>
-              ))}
-            </ul>
+            {form.formState.errors.itens.message || "Corrija os erros nos itens acima antes de enviar."}
           </AlertDescription>
         </Alert>
       )}

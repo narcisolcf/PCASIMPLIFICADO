@@ -1,8 +1,11 @@
 /**
- * Componente: Item de Contratação
+ * Componente: Item de Contratação (Adaptado para react-hook-form)
  * Representa um item individual no formulário PCA (repetível)
- * Adaptado do MVP com componentes Shadcn-ui
+ *
+ * @version 2.0 - Refatorado para usar react-hook-form + Controller
  */
+import { UseFormReturn } from "react-hook-form";
+import { Controller } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,15 +14,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, AlertCircle, FileText } from "lucide-react";
-import { ItemContratacao as ItemType, TipoItem, GrauPrioridade } from "@/hooks/useFormularioPCA";
+import { FormularioPCAData } from "@/hooks/useFormularioPCA";
 
 interface Props {
-  item: ItemType;
+  form: UseFormReturn<FormularioPCAData>;
+  index: number;
   numero: number;
-  onChange: (item: ItemType) => void;
   onRemover: () => void;
   podeRemover: boolean;
+  calcularValorTotal: (index: number) => void;
 }
+
+// Tipos inferidos do schema Zod
+type TipoItem = "Material" | "Serviço" | "Obra" | "Serviço de Engenharia";
+type GrauPrioridade = "Alta" | "Média" | "Baixa";
 
 const TIPOS_ITEM: Array<{ valor: TipoItem; texto: string }> = [
   { valor: "Material", texto: "Material" },
@@ -34,19 +42,14 @@ const PRIORIDADES: Array<{ valor: GrauPrioridade; texto: string; cor: string }> 
   { valor: "Baixa", texto: "Baixa", cor: "secondary" },
 ];
 
-export function ItemContratacao({ item, numero, onChange, onRemover, podeRemover }: Props) {
-  function handleChange(campo: keyof ItemType, valor: any) {
-    const itemAtualizado = { ...item, [campo]: valor };
-
-    // Recalcular valor total se quantidade ou valor unitário mudaram
-    if (campo === "quantidade" || campo === "valorUnitario") {
-      const quantidade = campo === "quantidade" ? valor : item.quantidade;
-      const valorUnitario = campo === "valorUnitario" ? valor : item.valorUnitario;
-      itemAtualizado.valorTotal = quantidade * valorUnitario;
-    }
-
-    onChange(itemAtualizado);
-  }
+/**
+ * Componente de apresentação para item de contratação
+ * Integrado com react-hook-form via Controller (para Selects) e register (para Inputs)
+ */
+export function ItemContratacao({ form, index, numero, onRemover, podeRemover, calcularValorTotal }: Props) {
+  // Watch current item values for display and calculations
+  const item = form.watch(`itens.${index}`);
+  const errors = form.formState.errors.itens?.[index];
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -55,7 +58,7 @@ export function ItemContratacao({ item, numero, onChange, onRemover, podeRemover
     }).format(value);
   };
 
-  const prioridadeInfo = PRIORIDADES.find((p) => p.valor === item.prioridade);
+  const prioridadeInfo = PRIORIDADES.find((p) => p.valor === item?.prioridade);
 
   return (
     <Card className="mb-4 border-l-4 border-l-primary">
@@ -66,9 +69,9 @@ export function ItemContratacao({ item, numero, onChange, onRemover, podeRemover
               Item {numero.toString().padStart(2, "0")}
             </CardTitle>
             <Badge variant={prioridadeInfo?.cor as any}>
-              Prioridade: {item.prioridade}
+              Prioridade: {item?.prioridade || "Média"}
             </Badge>
-            <Badge variant="outline">{item.tipo}</Badge>
+            <Badge variant="outline">{item?.tipo || "Material"}</Badge>
           </div>
           {podeRemover && (
             <Button variant="ghost" size="sm" onClick={onRemover} type="button">
@@ -80,149 +83,220 @@ export function ItemContratacao({ item, numero, onChange, onRemover, podeRemover
 
       <CardContent className="pt-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Tipo do Item */}
+          {/* Tipo do Item - CONTROLLED (Select Shadcn requer Controller) */}
           <div>
-            <Label htmlFor={`tipo-${item.id}`}>
+            <Label htmlFor={`tipo-${index}`}>
               Tipo do Item <span className="text-destructive">*</span>
             </Label>
-            <Select value={item.tipo} onValueChange={(value) => handleChange("tipo", value as TipoItem)}>
-              <SelectTrigger id={`tipo-${item.id}`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TIPOS_ITEM.map((tipo) => (
-                  <SelectItem key={tipo.valor} value={tipo.valor}>
-                    {tipo.texto}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Controller
+              name={`itens.${index}.tipo`}
+              control={form.control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger
+                    id={`tipo-${index}`}
+                    className={`bg-white text-gray-900 ${errors?.tipo ? "border-destructive" : ""}`}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIPOS_ITEM.map((tipo) => (
+                      <SelectItem key={tipo.valor} value={tipo.valor}>
+                        {tipo.texto}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors?.tipo && (
+              <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+                <AlertCircle size={14} />
+                {errors.tipo.message}
+              </p>
+            )}
           </div>
 
-          {/* Prioridade */}
+          {/* Prioridade - CONTROLLED */}
           <div>
-            <Label htmlFor={`prioridade-${item.id}`}>
+            <Label htmlFor={`prioridade-${index}`}>
               Grau de Prioridade <span className="text-destructive">*</span>
             </Label>
-            <Select
-              value={item.prioridade}
-              onValueChange={(value) => handleChange("prioridade", value as GrauPrioridade)}
-            >
-              <SelectTrigger id={`prioridade-${item.id}`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PRIORIDADES.map((prioridade) => (
-                  <SelectItem key={prioridade.valor} value={prioridade.valor}>
-                    {prioridade.texto}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Controller
+              name={`itens.${index}.prioridade`}
+              control={form.control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger
+                    id={`prioridade-${index}`}
+                    className={`bg-white text-gray-900 ${errors?.prioridade ? "border-destructive" : ""}`}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRIORIDADES.map((prioridade) => (
+                      <SelectItem key={prioridade.valor} value={prioridade.valor}>
+                        {prioridade.texto}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors?.prioridade && (
+              <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+                <AlertCircle size={14} />
+                {errors.prioridade.message}
+              </p>
+            )}
           </div>
 
-          {/* Descrição do Objeto */}
+          {/* Descrição do Objeto - REGISTERED */}
           <div className="md:col-span-2">
-            <Label htmlFor={`descricao-${item.id}`}>
+            <Label htmlFor={`descricao-${index}`}>
               Descrição do Objeto <span className="text-destructive">*</span>
             </Label>
             <Textarea
-              id={`descricao-${item.id}`}
-              value={item.descricao}
-              onChange={(e) => handleChange("descricao", e.target.value)}
+              id={`descricao-${index}`}
+              {...form.register(`itens.${index}.descricao`)}
               placeholder="Seja específico. Ex: Computador desktop, processador i5, 8GB RAM, SSD 256GB"
               rows={3}
+              className={`bg-white text-gray-900 ${errors?.descricao ? "border-destructive" : ""}`}
             />
-            <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
-              <AlertCircle size={14} />
-              Evite descrições genéricas. Detalhe especificações técnicas.
-            </p>
+            {errors?.descricao ? (
+              <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+                <AlertCircle size={14} />
+                {errors.descricao.message}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                <AlertCircle size={14} />
+                Evite descrições genéricas. Detalhe especificações técnicas.
+              </p>
+            )}
           </div>
 
-          {/* Unidade de Fornecimento */}
+          {/* Unidade de Fornecimento - REGISTERED */}
           <div>
-            <Label htmlFor={`unidade-${item.id}`}>
+            <Label htmlFor={`unidade-${index}`}>
               Unidade de Fornecimento <span className="text-destructive">*</span>
             </Label>
             <Input
-              id={`unidade-${item.id}`}
-              value={item.unidadeFornecimento}
-              onChange={(e) => handleChange("unidadeFornecimento", e.target.value)}
+              id={`unidade-${index}`}
+              {...form.register(`itens.${index}.unidadeFornecimento`)}
               placeholder="un, kg, m², serviço, mês"
+              className={`bg-white text-gray-900 ${errors?.unidadeFornecimento ? "border-destructive" : ""}`}
             />
+            {errors?.unidadeFornecimento && (
+              <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+                <AlertCircle size={14} />
+                {errors.unidadeFornecimento.message}
+              </p>
+            )}
           </div>
 
-          {/* Quantidade */}
+          {/* Quantidade - REGISTERED (com cálculo automático) */}
           <div>
-            <Label htmlFor={`quantidade-${item.id}`}>
+            <Label htmlFor={`quantidade-${index}`}>
               Quantidade <span className="text-destructive">*</span>
             </Label>
             <Input
-              id={`quantidade-${item.id}`}
+              id={`quantidade-${index}`}
               type="number"
               min="1"
               step="1"
-              value={item.quantidade || ""}
-              onChange={(e) => handleChange("quantidade", Number(e.target.value))}
+              {...form.register(`itens.${index}.quantidade`, {
+                valueAsNumber: true,
+                onChange: () => calcularValorTotal(index),
+              })}
+              className={`bg-white text-gray-900 ${errors?.quantidade ? "border-destructive" : ""}`}
             />
+            {errors?.quantidade && (
+              <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+                <AlertCircle size={14} />
+                {errors.quantidade.message}
+              </p>
+            )}
           </div>
 
-          {/* Valor Unitário */}
+          {/* Valor Unitário - REGISTERED (com cálculo automático) */}
           <div>
-            <Label htmlFor={`valorUnitario-${item.id}`}>
+            <Label htmlFor={`valorUnitario-${index}`}>
               Valor Unitário Estimado (R$) <span className="text-destructive">*</span>
             </Label>
             <Input
-              id={`valorUnitario-${item.id}`}
+              id={`valorUnitario-${index}`}
               type="number"
               min="0"
               step="0.01"
-              value={item.valorUnitario || ""}
-              onChange={(e) => handleChange("valorUnitario", Number(e.target.value))}
+              {...form.register(`itens.${index}.valorUnitario`, {
+                valueAsNumber: true,
+                onChange: () => calcularValorTotal(index),
+              })}
+              className={`bg-white text-gray-900 ${errors?.valorUnitario ? "border-destructive" : ""}`}
             />
+            {errors?.valorUnitario && (
+              <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+                <AlertCircle size={14} />
+                {errors.valorUnitario.message}
+              </p>
+            )}
           </div>
 
-          {/* Valor Total (Calculado) */}
+          {/* Valor Total (Calculado - Read Only) */}
           <div>
-            <Label htmlFor={`valorTotal-${item.id}`}>Valor Total Estimado (R$)</Label>
+            <Label htmlFor={`valorTotal-${index}`}>Valor Total Estimado (R$)</Label>
             <Input
-              id={`valorTotal-${item.id}`}
+              id={`valorTotal-${index}`}
               type="text"
-              value={formatCurrency(item.valorTotal || 0)}
+              value={formatCurrency(item?.valorTotal || 0)}
               disabled
-              className="bg-muted font-semibold"
+              className="bg-muted font-semibold text-gray-900"
             />
           </div>
 
-          {/* Data Pretendida */}
+          {/* Data Pretendida - REGISTERED */}
           <div className="md:col-span-2">
-            <Label htmlFor={`dataPretendida-${item.id}`}>
+            <Label htmlFor={`dataPretendida-${index}`}>
               Data Pretendida para Contratação <span className="text-destructive">*</span>
             </Label>
             <Input
-              id={`dataPretendida-${item.id}`}
+              id={`dataPretendida-${index}`}
               type="date"
-              value={item.dataPretendida}
-              onChange={(e) => handleChange("dataPretendida", e.target.value)}
+              {...form.register(`itens.${index}.dataPretendida`)}
+              className={`bg-white text-gray-900 ${errors?.dataPretendida ? "border-destructive" : ""}`}
             />
+            {errors?.dataPretendida && (
+              <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+                <AlertCircle size={14} />
+                {errors.dataPretendida.message}
+              </p>
+            )}
           </div>
 
-          {/* Justificativa */}
+          {/* Justificativa - REGISTERED */}
           <div className="md:col-span-2">
-            <Label htmlFor={`justificativa-${item.id}`}>
+            <Label htmlFor={`justificativa-${index}`}>
               Justificativa <span className="text-destructive">*</span>
             </Label>
             <Textarea
-              id={`justificativa-${item.id}`}
-              value={item.justificativa}
-              onChange={(e) => handleChange("justificativa", e.target.value)}
+              id={`justificativa-${index}`}
+              {...form.register(`itens.${index}.justificativa`)}
               placeholder="Por que esta contratação é necessária? Vincular à missão institucional da secretaria."
               rows={4}
+              className={`bg-white text-gray-900 ${errors?.justificativa ? "border-destructive" : ""}`}
             />
-            <p className="text-sm text-destructive mt-1 flex items-center gap-1">
-              <FileText size={14} />
-              Obrigatório pela Lei 14.133/2021, art. 11, II
-            </p>
+            {errors?.justificativa ? (
+              <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+                <AlertCircle size={14} />
+                {errors.justificativa.message}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                <FileText size={14} />
+                Obrigatório pela Lei 14.133/2021, art. 11, II
+              </p>
+            )}
           </div>
         </div>
       </CardContent>
