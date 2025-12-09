@@ -6,7 +6,7 @@ import path from "path";
 export default defineConfig({
   server: {
     host: true, // Listen on all addresses (0.0.0.0) for local development
-    port: 8080,
+    port: 5173,
   },
   plugins: [react()],
   resolve: {

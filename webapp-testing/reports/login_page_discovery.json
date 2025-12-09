@@ -1,0 +1,22 @@
+{
+  "timestamp": "2025-12-09T21:07:36.912032",
+  "url": "http://localhost:5173/",
+  "elements": {
+    "inputs": [],
+    "buttons": [],
+    "links": [],
+    "forms": [],
+    "headings": [],
+    "images": [],
+    "interactive": []
+  },
+  "statistics": {
+    "inputs": 0,
+    "buttons": 0,
+    "links": 0,
+    "forms": 0,
+    "headings": 0,
+    "images": 0,
+    "interactive": 0
+  }
+}
