@@ -30,6 +30,7 @@ export function DadosRequisitante({ dados, onChange, erros = {} }: Props) {
       ...dados,
       unidadeGestoraId: unidadeId,
       unidadeGestoraNome: unidadeSelecionada?.nome || "",
+      numeroUasg: unidadeSelecionada?.numero_uasg || "", // Número UASG (obrigatório para DFD)
       areaRequisitanteId: "", // Reset área ao mudar unidade
       areaRequisitanteNome: "",
     });
@@ -160,6 +161,27 @@ export function DadosRequisitante({ dados, onChange, erros = {} }: Props) {
               <p className="text-sm text-destructive mt-1 flex items-center gap-1">
                 <AlertCircle size={14} />
                 {erros.responsavel}
+              </p>
+            )}
+          </div>
+
+          {/* CPF */}
+          <div>
+            <Label htmlFor="cpf">
+              CPF <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="cpf"
+              value={dados.cpf}
+              onChange={(e) => handleChange("cpf", e.target.value)}
+              placeholder="000.000.000-00"
+              maxLength={14}
+              className={erros.cpf ? "border-destructive" : ""}
+            />
+            {erros.cpf && (
+              <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+                <AlertCircle size={14} />
+                {erros.cpf}
               </p>
             )}
           </div>

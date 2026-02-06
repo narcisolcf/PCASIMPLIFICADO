@@ -21,11 +21,10 @@ interface Props {
   podeRemover: boolean;
 }
 
+// Tipos compatíveis com o enum do banco de dados (tipo_material_servico)
 const TIPOS_ITEM: Array<{ valor: TipoItem; texto: string }> = [
   { valor: "Material", texto: "Material" },
   { valor: "Serviço", texto: "Serviço" },
-  { valor: "Obra", texto: "Obra" },
-  { valor: "Serviço de Engenharia", texto: "Serviço de Engenharia" },
 ];
 
 const PRIORIDADES: Array<{ valor: GrauPrioridade; texto: string; cor: string }> = [

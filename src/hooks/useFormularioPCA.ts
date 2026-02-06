@@ -7,15 +7,18 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-export type TipoItem = "Material" | "Serviço" | "Obra" | "Serviço de Engenharia";
+// Tipos compatíveis com o enum do banco de dados (tipo_material_servico)
+export type TipoItem = "Material" | "Serviço";
 export type GrauPrioridade = "Alta" | "Média" | "Baixa";
 
 export interface DadosRequisitante {
   unidadeGestoraId: string;
   unidadeGestoraNome: string;
+  numeroUasg: string; // Adicionado: número da UASG (obrigatório para DFD)
   areaRequisitanteId: string;
   areaRequisitanteNome: string;
   responsavel: string;
+  cpf: string; // Adicionado: CPF do responsável (obrigatório para responsaveis)
   cargo: string;
   email: string;
   telefone: string;
@@ -53,9 +56,11 @@ interface ResultadoEnvio {
 const REQUISITANTE_INICIAL: DadosRequisitante = {
   unidadeGestoraId: "",
   unidadeGestoraNome: "",
+  numeroUasg: "",
   areaRequisitanteId: "",
   areaRequisitanteNome: "",
   responsavel: "",
+  cpf: "",
   cargo: "",
   email: "",
   telefone: "",
@@ -111,6 +116,14 @@ export function useFormularioPCA() {
     }
     if (!requisitante.telefone.trim()) {
       novosErros.requisitante = { ...novosErros.requisitante, telefone: "Telefone é obrigatório" };
+    }
+    if (!requisitante.cpf.trim()) {
+      novosErros.requisitante = { ...novosErros.requisitante, cpf: "CPF é obrigatório" };
+    } else if (!/^\d{11}$/.test(requisitante.cpf.replace(/\D/g, ""))) {
+      novosErros.requisitante = { ...novosErros.requisitante, cpf: "CPF inválido (deve ter 11 dígitos)" };
+    }
+    if (!requisitante.numeroUasg.trim()) {
+      novosErros.requisitante = { ...novosErros.requisitante, numeroUasg: "Número UASG é obrigatório" };
     }
 
     // Validar itens
@@ -174,6 +187,7 @@ export function useFormularioPCA() {
         .insert([
           {
             user_id: user.id,
+            numero_uasg: requisitante.numeroUasg, // Campo obrigatório
             area_requisitante_id: requisitante.areaRequisitanteId,
             descricao_sucinta: `Requisição PCA - ${requisitante.unidadeGestoraNome}`,
             justificativa_necessidade: `Requisição criada por ${requisitante.responsavel} (${requisitante.cargo})`,
@@ -207,13 +221,14 @@ export function useFormularioPCA() {
 
       if (itensError) throw itensError;
 
-      // Criar registro de responsável
+      // Criar registro de responsável (tabela correta: responsaveis)
       const { error: respError } = await supabase
-        .from("responsaveis_dfd")
+        .from("responsaveis")
         .insert([
           {
             dfd_id: pcaData.id,
             nome: requisitante.responsavel,
+            cpf: requisitante.cpf.replace(/\D/g, ""), // CPF apenas números (obrigatório)
             cargo: requisitante.cargo,
             email: requisitante.email,
             telefone: requisitante.telefone,
