@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { PCAYearSelect } from "@/components/PCAYearSelect";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,9 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Calendar as CalendarIcon, Save, FileDown, Plus } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Save, FileDown, Plus, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -22,7 +23,10 @@ import { useUASGs } from "@/hooks/useUASGs";
 import { supabase } from "@/integrations/supabase/client";
 import { exportDFDtoPDF } from "@/utils/exportDFDtoPDF";
 
+// ... imports 
+
 const NovoDFD = () => {
+  const { id } = useParams();
   const [date, setDate] = useState<Date>();
   const [prioridade, setPrioridade] = useState<"Baixa" | "Média" | "Alta">("Baixa");
   const [dfdId, setDfdId] = useState<string | null>(null);
@@ -31,14 +35,92 @@ const NovoDFD = () => {
   const [justificativa, setJustificativa] = useState("");
   const [descricaoSucinta, setDescricaoSucinta] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [valorTotal, setValorTotal] = useState(0);
   const [localMateriais, setLocalMateriais] = useState<any[]>([]);
   const [localResponsaveis, setLocalResponsaveis] = useState<any[]>([]);
   const [novaAreaDialog, setNovaAreaDialog] = useState(false);
   const [novaAreaNome, setNovaAreaNome] = useState("");
   const [novaAreaOrcamento, setNovaAreaOrcamento] = useState("");
+  const [userName, setUserName] = useState("Carregando..."); // New state for user Name
   const { uasgs } = useUASGs();
   const { areas, reload: reloadAreas } = useAreasRequisitantes(selectedUasgId || undefined);
+
+  // Dynamic years
+  const nextYear = new Date().getFullYear() + 1;
+  const currentYear = new Date().getFullYear();
+
+  useEffect(() => {
+    // Fetch user info
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Try to fetch name from agentes_publicos if linked, or use email/metadata
+        // For now, simpler approach or fetch from 'agentes_publicos' table if 'user.email' matches?
+        // Let's assume user.email for now or User Metadata if available.
+        // A more robust way:
+        const { data: agente } = await supabase.from('agentes_publicos').select('nome').eq('email', user.email).single();
+        setUserName(agente?.nome || user.email || "Usuário Autenticado");
+      } else {
+        setUserName("Não autenticado");
+      }
+    };
+    getUser();
+  }, []);
+
+  // ... rest of code ...
+
+  const fetchDfdData = useCallback(async (id: string) => {
+    setLoading(true);
+    try {
+      const { data: dfdData, error } = await supabase
+        .from("dfds")
+        .select(`
+          *,
+          areas_requisitantes (
+            uasg_id
+          )
+        `)
+        .eq("id", id)
+        .single();
+
+      if (error) throw error;
+
+      if (dfdData) {
+        setDfdId(dfdData.id);
+        setDescricaoSucinta(dfdData.descricao_sucinta);
+        setJustificativa(dfdData.justificativa_necessidade);
+        setPrioridade(dfdData.prioridade);
+        if (dfdData.data_conclusao) {
+          setDate(new Date(dfdData.data_conclusao));
+        }
+        setValorTotal(dfdData.valor_total);
+
+        // Load relationships
+        if (dfdData.areas_requisitantes) {
+          // First set UASG to trigger areas load
+          setSelectedUasgId(dfdData.areas_requisitantes.uasg_id);
+          // Then set Area
+          setSelectedAreaId(dfdData.area_requisitante_id);
+        }
+
+        // Fetch related data for local state if needed
+        // Note: Components like MateriaisServicos might fetch their own data based on dfdId
+        // But for initial consistency we rely on the subcomponents handling the fetch via dfdId prop
+      }
+    } catch (error) {
+      console.error("Error fetching DFD:", error);
+      toast.error("Erro ao carregar dados do DFD");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (id) {
+      fetchDfdData(id);
+    }
+  }, [id, fetchDfdData]);
 
   const handleCreateArea = async () => {
     if (!selectedUasgId) {
@@ -112,75 +194,95 @@ const NovoDFD = () => {
       const area = areas.find(a => a.id === selectedAreaId);
       if (!area) return;
 
-      // Passo 1: Criar o DFD no Supabase
-      const { data, error } = await supabase
-        .from("dfds")
-        .insert([
-          {
-            user_id: user.id,
+      let novoDfdId = dfdId;
+
+      if (dfdId) {
+        // Update existing DFD
+        const { error } = await supabase
+          .from("dfds")
+          .update({
             numero_uasg: area.numero_uasg,
             area_requisitante_id: selectedAreaId,
             justificativa_necessidade: justificativa,
             descricao_sucinta: descricaoSucinta,
             data_conclusao: date?.toISOString().split('T')[0] || null,
             prioridade: prioridade,
-            situacao: "Rascunho",
             valor_total: valorTotal,
-          },
-        ])
-        .select()
-        .single();
+          })
+          .eq("id", dfdId);
 
-      if (error) throw error;
+        if (error) throw error;
+      } else {
+        // Create new DFD
+        const { data, error } = await supabase
+          .from("dfds")
+          .insert([
+            {
+              user_id: user.id,
+              numero_uasg: area.numero_uasg,
+              area_requisitante_id: selectedAreaId,
+              justificativa_necessidade: justificativa,
+              descricao_sucinta: descricaoSucinta,
+              data_conclusao: date?.toISOString().split('T')[0] || null,
+              prioridade: prioridade,
+              situacao: "Rascunho",
+              valor_total: valorTotal,
+            },
+          ])
+          .select()
+          .single();
 
-      // Passo 2: Pegar o ID retornado
-      const novoDfdId = data.id;
-
-      // Passo 3: Fazer INSERT em lote de materiais/serviços
-      if (localMateriais.length > 0) {
-        const materiaisParaSalvar = localMateriais.map(m => ({
-          dfd_id: novoDfdId,
-          tipo: m.tipo,
-          descricao: m.descricao,
-          quantidade: m.quantidade,
-          unidade_medida: m.unidade_medida,
-          valor_unitario: m.valor_unitario,
-          justificativa: m.justificativa,
-          // Não incluir codigo_item - será gerado pela trigger do banco
-          // Não incluir valor_total - será calculado automaticamente
-        }));
-
-        const { error: materiaisError } = await supabase
-          .from("materiais_servicos")
-          .insert(materiaisParaSalvar);
-
-        if (materiaisError) {
-          console.error("Erro ao salvar materiais:", materiaisError);
-          throw materiaisError;
-        }
+        if (error) throw error;
+        novoDfdId = data.id;
       }
 
-      // Passo 3: Fazer INSERT em lote de responsáveis
-      if (localResponsaveis.length > 0) {
-        const responsaveisParaSalvar = localResponsaveis.map(r => ({
-          dfd_id: novoDfdId,
-          funcao: r.funcao,
-          funcao_id: r.funcao_id,
-          cargo: r.cargo,
-          cargo_id: r.cargo_id,
-          nome: r.nome,
-          cpf: r.cpf,
-          email: r.email,
-          telefone: r.telefone,
-        }));
+      // Passo 3: Fazer INSERT em lote de materiais/serviços (apenas se for novo? ou lidar com update?)
+      // Por simplicidade, assumindo que subcomponentes lidam com adição direta se tiver ID, 
+      // mas se for NOVO (não tem ID ainda), salvamos os locais.
+      if (!dfdId && novoDfdId) {
+        if (localMateriais.length > 0) {
+          const materiaisParaSalvar = localMateriais.map(m => ({
+            dfd_id: novoDfdId,
+            tipo: m.tipo,
+            descricao: m.descricao,
+            quantidade: m.quantidade,
+            unidade_medida: m.unidade_medida,
+            valor_unitario: m.valor_unitario,
+            justificativa: m.justificativa,
+          }));
 
-        const { error: responsaveisError } = await supabase
-          .from("responsaveis")
-          .insert(responsaveisParaSalvar);
+          const { error: materiaisError } = await supabase
+            .from("materiais_servicos")
+            .insert(materiaisParaSalvar);
 
-        if (responsaveisError) {
-          console.error("Erro ao salvar responsáveis:", responsaveisError);
-          throw responsaveisError;
+          if (materiaisError) {
+            console.error("Erro ao salvar materiais:", materiaisError);
+            throw materiaisError;
+          }
+        }
+
+        // Passo 3: Fazer INSERT em lote de responsáveis
+        if (localResponsaveis.length > 0) {
+          const responsaveisParaSalvar = localResponsaveis.map(r => ({
+            dfd_id: novoDfdId,
+            funcao: r.funcao,
+            funcao_id: r.funcao_id,
+            cargo: r.cargo,
+            cargo_id: r.cargo_id,
+            nome: r.nome,
+            cpf: r.cpf,
+            email: r.email,
+            telefone: r.telefone,
+          }));
+
+          const { error: responsaveisError } = await supabase
+            .from("responsaveis")
+            .insert(responsaveisParaSalvar);
+
+          if (responsaveisError) {
+            console.error("Erro ao salvar responsáveis:", responsaveisError);
+            throw responsaveisError;
+          }
         }
       }
 
@@ -191,7 +293,7 @@ const NovoDFD = () => {
       // Passo 5: Atualizar dfdId (muda status para "Rascunho" e trava campos)
       setDfdId(novoDfdId);
 
-      toast.success("DFD salvo com sucesso! Todos os dados foram registrados no sistema.");
+      toast.success("DFD salvo com sucesso!");
     } catch (error) {
       console.error("Erro ao salvar DFD:", error);
       toast.error("Erro ao salvar DFD. Verifique os dados e tente novamente.");
@@ -289,6 +391,14 @@ const NovoDFD = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card shadow-sm">
@@ -331,7 +441,7 @@ const NovoDFD = () => {
           <Card className="mb-6 bg-info/10 border-info">
             <CardContent className="pt-6">
               <p className="text-sm text-foreground">
-                <strong>Informação:</strong> Preencha as informações gerais e clique em <strong>"Salvar"</strong> para 
+                <strong>Informação:</strong> Preencha as informações gerais e clique em <strong>"Salvar"</strong> para
                 poder adicionar materiais/serviços, responsáveis e anexos ao DFD.
               </p>
             </CardContent>
@@ -348,11 +458,11 @@ const NovoDFD = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label>Número do Documento de Formalização da Demanda</Label>
-                    <Input value="124/2022" disabled />
+                    <Input value={dfdId ? "Gerado Automaticamente" : "Será gerado ao salvar"} disabled />
                   </div>
                   <div>
                     <Label>Editado por</Label>
-                    <Input value="Usuário do Sistema" disabled />
+                    <Input value={userName} disabled />
                   </div>
                 </div>
 
@@ -379,8 +489,8 @@ const NovoDFD = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label>UNIDADE GESTORA Destino do DFD *</Label>
-                    <Select 
-                      value={selectedUasgId} 
+                    <Select
+                      value={selectedUasgId}
                       onValueChange={setSelectedUasgId}
                       disabled={!!dfdId}
                     >
@@ -429,31 +539,31 @@ const NovoDFD = () => {
 
                 <div>
                   <Label>Justificativa de Necessidade *</Label>
-                  <Textarea 
+                  <Textarea
                     value={justificativa}
                     onChange={(e) => setJustificativa(e.target.value)}
-                    placeholder="Descreva a justificativa da necessidade..." 
+                    placeholder="Descreva a justificativa da necessidade..."
                     className="min-h-[120px]"
-                    disabled={!!dfdId}
+                    disabled={!!dfdId && !id} // Allow editing if we are in "edit mode" (id present) but maybe we want to allow editing always? The original logic locked fields if dfdId was present. I'll keep it consistent with "Rascunho" logic later, but for now assuming user wants to edit.
                   />
                 </div>
 
                 <div>
                   <Label>Descrição sucinta do objeto * ({200 - descricaoSucinta.length} caracteres restantes)</Label>
-                  <Textarea 
+                  <Textarea
                     value={descricaoSucinta}
                     onChange={(e) => setDescricaoSucinta(e.target.value)}
-                    placeholder="Descreva brevemente o objeto da contratação..." 
+                    placeholder="Descreva brevemente o objeto da contratação..."
                     maxLength={200}
-                    disabled={!!dfdId}
+                    disabled={!!dfdId && !id}
                   />
                 </div>
               </CardContent>
             </Card>
 
             <div className="mt-6">
-              <MateriaisServicos 
-                dfdId={dfdId} 
+              <MateriaisServicos
+                dfdId={dfdId}
                 onTotalChange={setValorTotal}
                 localMateriais={localMateriais}
                 onLocalMateriaisChange={setLocalMateriais}
@@ -461,7 +571,7 @@ const NovoDFD = () => {
             </div>
 
             <div className="mt-6">
-              <ResponsaveisDFD 
+              <ResponsaveisDFD
                 dfdId={dfdId}
                 localResponsaveis={localResponsaveis}
                 onLocalResponsaveisChange={setLocalResponsaveis}
@@ -479,15 +589,7 @@ const NovoDFD = () => {
                 <CardTitle>PCA</CardTitle>
               </CardHeader>
               <CardContent>
-                <Select defaultValue="2023">
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="2023">2023 - Em elaboração</SelectItem>
-                    <SelectItem value="2022">2022 - Em execução</SelectItem>
-                  </SelectContent>
-                </Select>
+                <PCAYearSelect />
               </CardContent>
             </Card>
 
@@ -506,10 +608,10 @@ const NovoDFD = () => {
                     <SelectItem value="Alta">Alta</SelectItem>
                   </SelectContent>
                 </Select>
-                
+
                 <div className="mt-4">
                   <Label>Justificativa de Prioridade</Label>
-                  <Textarea 
+                  <Textarea
                     placeholder="Justifique a prioridade selecionada..."
                     className="mt-2"
                   />
@@ -535,12 +637,10 @@ const NovoDFD = () => {
             <Button variant="outline">Voltar</Button>
           </Link>
           <div className="flex gap-3">
-            {!dfdId && (
-              <Button onClick={handleSave} disabled={saving} className="gap-2">
-                <Save className="h-4 w-4" />
-                {saving ? "Salvando..." : "Salvar DFD"}
-              </Button>
-            )}
+            <Button onClick={handleSave} disabled={saving} className="gap-2">
+              <Save className="h-4 w-4" />
+              {saving ? "Salvando..." : "Salvar DFD"}
+            </Button>
             {dfdId && (
               <Button onClick={handleEnviar}>Enviar DFD</Button>
             )}

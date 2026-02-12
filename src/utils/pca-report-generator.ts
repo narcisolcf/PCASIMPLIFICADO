@@ -1,6 +1,31 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { MOCK_PCA_DATA, PCASecretaria } from "./mock-pca-data";
+
+// Interfaces for Report Data
+export interface PCAItem {
+    tipo: "IT" | "Obra" | "Servico";
+    descricao: string;
+    valor: number;
+    prazo: string;
+    prioridade: "Altíssima" | "Alta" | "Média" | "Baixa";
+    justificativa: string;
+}
+
+export interface PCASecretaria {
+    nome: string;
+    sigla: string;
+    corGrafico: string;
+    valorTotal: number;
+    itens: PCAItem[];
+}
+
+export interface PCAReportData {
+    ano: number;
+    unidadeGestora: string; // Or contract info
+    quantidadeItensGeral: number;
+    valorTotalGeral: number;
+    secretarias: PCASecretaria[];
+}
 
 // Colors
 const COLORS = {
@@ -19,7 +44,7 @@ const COLORS = {
     }
 };
 
-export const generatePCAReport = () => {
+export const generatePCAReport = (data: PCAReportData) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
@@ -40,7 +65,7 @@ export const generatePCAReport = () => {
     doc.setTextColor(COLORS.white);
     doc.setFontSize(28);
     doc.setFont("helvetica", "bold");
-    doc.text("PCA 2025", pageWidth / 2, 130, { align: "center" });
+    doc.text(`PCA ${data.ano}`, pageWidth / 2, 130, { align: "center" });
 
     doc.setFontSize(16);
     doc.setFont("helvetica", "normal");
@@ -49,7 +74,7 @@ export const generatePCAReport = () => {
     doc.setFontSize(12);
     doc.setTextColor(COLORS.textLight);
     doc.text("Contrato: 2025.10.23.001-01", pageWidth / 2, 260, { align: "center" });
-    doc.text("Expert Consultoria + Prefeitura Camocim", pageWidth / 2, 266, { align: "center" });
+    doc.text(data.unidadeGestora, pageWidth / 2, 266, { align: "center" });
 
     // --- 2. DASHBOARD EXECUTIVO ---
     doc.addPage();
@@ -64,9 +89,9 @@ export const generatePCAReport = () => {
     const cardWidth = (pageWidth - (margin * 2) - 10) / 3;
     const cardY = 30;
 
-    drawSummaryCard(doc, margin, cardY, cardWidth, "Total de Itens", MOCK_PCA_DATA.quantidadeItensGeral.toString());
-    drawSummaryCard(doc, margin + cardWidth + 5, cardY, cardWidth, "Valor Total Estimado", `R$ ${(MOCK_PCA_DATA.valorTotalGeral / 1000000).toFixed(1)} Mi`);
-    drawSummaryCard(doc, margin + (cardWidth + 5) * 2, cardY, cardWidth, "Unidades Gestoras", MOCK_PCA_DATA.secretarias.length.toString());
+    drawSummaryCard(doc, margin, cardY, cardWidth, "Total de Itens", data.quantidadeItensGeral.toString());
+    drawSummaryCard(doc, margin + cardWidth + 5, cardY, cardWidth, "Valor Total Estimado", `R$ ${(data.valorTotalGeral / 1000000).toFixed(1)} Mi`);
+    drawSummaryCard(doc, margin + (cardWidth + 5) * 2, cardY, cardWidth, "Unidades Gestoras", data.secretarias.length.toString());
 
     // Pie Chart (Manual Drawing for distribution)
     const pieX = 60;
@@ -82,32 +107,32 @@ export const generatePCAReport = () => {
     // Note: For a real chart we'd calculate start/end angles properly. 
     // Simplified vector drawing for demo:
     let startAngle = 0;
-    MOCK_PCA_DATA.secretarias.forEach(sec => {
+    data.secretarias.forEach(sec => {
         // Calculate slice angle based on value (simplified to item count for visual variety if needed, or stick to value)
-        const portion = sec.valorTotal / MOCK_PCA_DATA.valorTotalGeral;
+        const portion = sec.valorTotal / (data.valorTotalGeral || 1); // Avoid division by zero
         const angle = portion * 360;
 
         // Draw Arc (omitted complex path logic for stability, drawing Legend instead as primary visual)
 
         // Legend
         doc.setFillColor(sec.corGrafico);
-        doc.rect(110, pieY - 30 + (MOCK_PCA_DATA.secretarias.indexOf(sec) * 12), 4, 4, "F");
+        doc.rect(110, pieY - 30 + (data.secretarias.indexOf(sec) * 12), 4, 4, "F");
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
         doc.setTextColor(COLORS.text);
         const label = `${sec.sigla} - ${(portion * 100).toFixed(1)}%`;
-        doc.text(label, 116, pieY - 27 + (MOCK_PCA_DATA.secretarias.indexOf(sec) * 12));
+        doc.text(label, 116, pieY - 27 + (data.secretarias.indexOf(sec) * 12));
     });
 
     // Since manual arc drawing in jspdf is verbose without a helper, let's draw a visual representation (Bar chart) instead which is cleaner
-    drawBarChart(doc, margin, 180, pageWidth - (margin * 2), 60, MOCK_PCA_DATA.secretarias);
+    drawBarChart(doc, margin, 180, pageWidth - (margin * 2), 60, data.secretarias);
 
     // Priority Legend
     const legendY = 270;
     drawPriorityLegend(doc, margin, legendY);
 
     // --- 3. DETALHAMENTO POR SECRETARIA ---
-    MOCK_PCA_DATA.secretarias.forEach(sec => {
+    data.secretarias.forEach(sec => {
         if (sec.itens.length === 0) return; // Skip empty ones
 
         doc.addPage();
@@ -172,7 +197,7 @@ export const generatePCAReport = () => {
     });
 
     // Footer
-    const pageCount = doc.internal.getNumberOfPages();
+    const pageCount = doc.internal.pages.length - 1; // Correct way to get page count if getNumberOfPages is missing on internal
     for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
         doc.setFontSize(8);
@@ -181,7 +206,7 @@ export const generatePCAReport = () => {
         doc.text(`Gerado em ${new Date().toLocaleDateString()}`, margin, pageHeight - 10);
     }
 
-    doc.save("PCA_2025_Consolidado_Camocim.pdf");
+    doc.save(`PCA_${data.ano}_Consolidado_Camocim.pdf`);
 };
 
 function drawSummaryCard(doc: jsPDF, x: number, y: number, w: number, title: string, value: string) {

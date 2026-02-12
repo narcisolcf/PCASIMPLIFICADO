@@ -6,6 +6,8 @@ import { FormularioPCA } from "@/components/formulario/FormularioPCA";
 import { RelatorioPCADownload } from "@/components/relatorios/RelatorioPCADownload";
 
 const FormacaoPCA = () => {
+  const nextYear = new Date().getFullYear() + 1;
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card shadow-sm">
@@ -19,7 +21,7 @@ const FormacaoPCA = () => {
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
                 <FileText className="h-6 w-6 text-primary" />
-                Formação do PCA 2025
+                Formação do PCA {nextYear}
               </h1>
               <p className="text-sm text-muted-foreground">
                 Plano de Contratações Anual - Requisição de Materiais, Serviços e Obras
@@ -37,7 +39,7 @@ const FormacaoPCA = () => {
             <CardTitle>Instruções para Preenchimento</CardTitle>
             <CardDescription>
               Preencha o formulário abaixo com as informações sobre os itens que sua unidade
-              gestora pretende contratar no exercício de 2025
+              gestora pretende contratar no exercício de {nextYear}
             </CardDescription>
           </CardHeader>
           <CardContent>
