@@ -139,7 +139,7 @@ export function useFormularioPCA() {
 
     setErros(novosErros);
     return Object.keys(novosErros).length === 0 ||
-           (Object.keys(novosErros).length === 1 && novosErros.itens?.every(e => !e));
+      (Object.keys(novosErros).length === 1 && novosErros.itens?.every(e => !e));
   }
 
   /**
@@ -196,9 +196,8 @@ export function useFormularioPCA() {
         quantidade: item.quantidade,
         valor_unitario: item.valorUnitario,
         justificativa: item.justificativa,
-        // Novos campos (precisarão da migration):
-        // prioridade: item.prioridade,
-        // data_pretendida: item.dataPretendida,
+        prioridade: item.prioridade,
+        data_pretendida: item.dataPretendida,
       }));
 
       const { error: itensError } = await supabase

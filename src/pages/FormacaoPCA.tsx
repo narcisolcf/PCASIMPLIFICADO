@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 import { FormularioPCA } from "@/components/formulario/FormularioPCA";
+import { RelatorioPCADownload } from "@/components/relatorios/RelatorioPCADownload";
 
 const FormacaoPCA = () => {
   return (
@@ -15,7 +16,7 @@ const FormacaoPCA = () => {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </Link>
-            <div>
+            <div className="flex-1">
               <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
                 <FileText className="h-6 w-6 text-primary" />
                 Formação do PCA 2025
@@ -24,6 +25,7 @@ const FormacaoPCA = () => {
                 Plano de Contratações Anual - Requisição de Materiais, Serviços e Obras
               </p>
             </div>
+            <RelatorioPCADownload />
           </div>
         </div>
       </header>
