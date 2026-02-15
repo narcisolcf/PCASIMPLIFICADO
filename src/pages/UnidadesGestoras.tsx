@@ -5,13 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Edit, Trash2, Save } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useUASGs } from "@/hooks/useUASGs";
 import { useAgentesPublicos } from "@/hooks/useAgentesPublicos";
+import { useUnidadesOrcamentarias } from "@/hooks/useUnidadesOrcamentarias";
+import { useRubricas } from "@/hooks/useRubricas";
 import { supabase } from "@/integrations/supabase/client";
 
 const UnidadesGestoras = () => {
@@ -21,14 +23,19 @@ const UnidadesGestoras = () => {
   const [editingUasg, setEditingUasg] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
+  const { unidades, addUnidade, deleteUnidade } = useUnidadesOrcamentarias(editingUasg);
+  const { rubricas, addRubrica, deleteRubrica } = useRubricas(editingUasg);
+
   const [formData, setFormData] = useState({
     numero_uasg: "",
     nome: "",
-    unidades_orcamentarias: "",
-    rubricas: "",
     ordenador_despesa_id: "",
     disponibilidade_orcamentaria: "",
   });
+
+  // States for sub-items forms
+  const [newUnidade, setNewUnidade] = useState({ codigo: "", nome: "" });
+  const [newRubrica, setNewRubrica] = useState({ codigo: "", descricao: "" });
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -49,8 +56,6 @@ const UnidadesGestoras = () => {
 
     const uasgData = {
       nome: formData.nome,
-      unidades_orcamentarias: formData.unidades_orcamentarias || null,
-      rubricas: formData.rubricas || null,
       ordenador_despesa_id: formData.ordenador_despesa_id || null,
       disponibilidade_orcamentaria: disponibilidade,
     };
@@ -74,15 +79,7 @@ const UnidadesGestoras = () => {
       }
 
       setDialogOpen(false);
-      setFormData({
-        numero_uasg: "",
-        nome: "",
-        unidades_orcamentarias: "",
-        rubricas: "",
-        ordenador_despesa_id: "",
-        disponibilidade_orcamentaria: "",
-      });
-      setEditingUasg(null);
+      resetForm();
       reload();
     } catch (error: unknown) {
       console.error("Erro ao salvar UNIDADE GESTORA:", error);
@@ -90,13 +87,23 @@ const UnidadesGestoras = () => {
     }
   };
 
-  const handleEdit = (uasg: { id: string; numero_uasg: string; nome: string; unidades_orcamentarias?: string | null; rubricas?: string | null; ordenador_despesa_id?: string | null; disponibilidade_orcamentaria: number }) => {
+  const resetForm = () => {
+    setFormData({
+      numero_uasg: "",
+      nome: "",
+      ordenador_despesa_id: "",
+      disponibilidade_orcamentaria: "",
+    });
+    setEditingUasg(null);
+    setNewUnidade({ codigo: "", nome: "" });
+    setNewRubrica({ codigo: "", descricao: "" });
+  };
+
+  const handleEdit = (uasg: any) => {
     setEditingUasg(uasg.id);
     setFormData({
       numero_uasg: uasg.numero_uasg,
       nome: uasg.nome,
-      unidades_orcamentarias: uasg.unidades_orcamentarias || "",
-      rubricas: uasg.rubricas || "",
       ordenador_despesa_id: uasg.ordenador_despesa_id || "",
       disponibilidade_orcamentaria: uasg.disponibilidade_orcamentaria.toString(),
     });
@@ -119,6 +126,32 @@ const UnidadesGestoras = () => {
         toast.error("Falha ao excluir UNIDADE GESTORA");
       }
     }
+  };
+
+  const handleAddUnidade = async () => {
+    if (!editingUasg || !newUnidade.codigo || !newUnidade.nome) {
+      toast.error("Preencha código e nome");
+      return;
+    }
+    await addUnidade({
+      uasg_id: editingUasg,
+      codigo: newUnidade.codigo,
+      nome: newUnidade.nome
+    });
+    setNewUnidade({ codigo: "", nome: "" });
+  };
+
+  const handleAddRubrica = async () => {
+    if (!editingUasg || !newRubrica.codigo || !newRubrica.descricao) {
+      toast.error("Preencha código e descrição");
+      return;
+    }
+    await addRubrica({
+      uasg_id: editingUasg,
+      codigo: newRubrica.codigo,
+      descricao: newRubrica.descricao
+    });
+    setNewRubrica({ codigo: "", descricao: "" });
   };
 
   const filteredUASGs = uasgs.filter(
@@ -181,111 +214,212 @@ const UnidadesGestoras = () => {
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle>Lista de UNIDADES GESTORAS</CardTitle>
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <Dialog open={dialogOpen} onOpenChange={(open) => {
+                setDialogOpen(open);
+                if (!open) resetForm();
+              }}>
                 <DialogTrigger asChild>
-                  <Button
-                    className="gap-2"
-                    onClick={() => {
-                      setEditingUasg(null);
-                      setFormData({
-                        numero_uasg: "",
-                        nome: "",
-                        unidades_orcamentarias: "",
-                        rubricas: "",
-                        ordenador_despesa_id: "",
-                        disponibilidade_orcamentaria: "",
-                      });
-                    }}
-                  >
+                  <Button className="gap-2">
                     <Plus className="h-4 w-4" />
                     Adicionar UNIDADE GESTORA
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>
                       {editingUasg ? "Editar UNIDADE GESTORA" : "Nova UNIDADE GESTORA"}
                     </DialogTitle>
                     <DialogDescription>
-                      Preencha os dados da unidade gestora
+                      Gerencie os detalhes da unidade gestora
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+
+                  <Tabs defaultValue="dados-basicos" className="w-full">
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="dados-basicos">Dados Básicos</TabsTrigger>
+                      <TabsTrigger value="unidades-orcamentarias" disabled={!editingUasg}>
+                        Unidades Orçamentárias
+                      </TabsTrigger>
+                      <TabsTrigger value="rubricas" disabled={!editingUasg}>
+                        Rubricas
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="dados-basicos" className="space-y-4 py-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Número UASG</Label>
+                          <Input
+                            value={editingUasg ? formData.numero_uasg : "Gerado automaticamente"}
+                            disabled
+                            className="bg-muted"
+                          />
+                        </div>
+                        <div>
+                          <Label>Disponibilidade Orçamentária</Label>
+                          <Input
+                            value={formData.disponibilidade_orcamentaria}
+                            onChange={(e) => setFormData({ ...formData, disponibilidade_orcamentaria: e.target.value })}
+                            placeholder="0,00"
+                          />
+                        </div>
+                      </div>
                       <div>
+                        <Label>Nome da UNIDADE GESTORA *</Label>
                         <Input
-                          value={editingUasg ? formData.numero_uasg : "Gerado automaticamente"}
-                          disabled
-                          className="bg-muted"
+                          value={formData.nome}
+                          onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                          placeholder="Nome completo da unidade"
                         />
                       </div>
                       <div>
-                        <Label>Disponibilidade Orçamentária</Label>
-                        <Input
-                          value={formData.disponibilidade_orcamentaria}
-                          onChange={(e) => setFormData({ ...formData, disponibilidade_orcamentaria: e.target.value })}
-                          placeholder="0,00"
-                        />
+                        <Label>Ordenador de Despesa</Label>
+                        <Select
+                          value={formData.ordenador_despesa_id}
+                          onValueChange={(value) => setFormData({ ...formData, ordenador_despesa_id: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione um agente público" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none_selection">Nenhum</SelectItem>
+                            {agentes && agentes.length > 0 ? (
+                              agentes.map((agente) => (
+                                <SelectItem key={agente.id} value={agente.id}>
+                                  {agente.nome} - {agente.cpf}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="loading" disabled>Carregando agentes...</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </div>
-                    <div>
-                      <Label>Nome da UNIDADE GESTORA *</Label>
-                      <Input
-                        value={formData.nome}
-                        onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                        placeholder="Nome completo da unidade"
-                      />
-                    </div>
-                    <div>
-                      <Label>Unidades Orçamentárias</Label>
-                      <Textarea
-                        value={formData.unidades_orcamentarias}
-                        onChange={(e) => setFormData({ ...formData, unidades_orcamentarias: e.target.value })}
-                        placeholder="Liste as unidades orçamentárias"
-                        className="min-h-[80px]"
-                      />
-                    </div>
-                    <div>
-                      <Label>Rubricas</Label>
-                      <Textarea
-                        value={formData.rubricas}
-                        onChange={(e) => setFormData({ ...formData, rubricas: e.target.value })}
-                        placeholder="Liste as rubricas orçamentárias"
-                        className="min-h-[80px]"
-                      />
-                    </div>
-                    <div>
-                      <Label>Ordenador de Despesa</Label>
-                      <Select
-                        value={formData.ordenador_despesa_id}
-                        onValueChange={(value) => setFormData({ ...formData, ordenador_despesa_id: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um agente público" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none_selection">Nenhum</SelectItem>
-                          {agentes && agentes.length > 0 ? (
-                            agentes.map((agente) => (
-                              <SelectItem key={agente.id} value={agente.id}>
-                                {agente.nome} - {agente.cpf}
-                              </SelectItem>
-                            ))
-                          ) : (
-                            <SelectItem value="loading" disabled>Carregando agentes...</SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter className="mt-4">
-                    <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                      Cancelar
-                    </Button>
-                    <Button onClick={handleSubmit}>
-                      {editingUasg ? "Atualizar" : "Cadastrar"}
-                    </Button>
-                  </DialogFooter>
+                      <div className="flex justify-end pt-4">
+                        {!editingUasg && (
+                          <div className="text-sm text-yellow-600 mr-auto self-center bg-yellow-50 px-3 py-1 rounded-md">
+                            Salve a UASG para adicionar Unidades Orçamentárias e Rubricas.
+                          </div>
+                        )}
+                        <Button onClick={handleSubmit}>
+                          <Save className="h-4 w-4 mr-2" />
+                          {editingUasg ? "Salvar Alterações" : "Cadastrar UASG"}
+                        </Button>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="unidades-orcamentarias" className="space-y-4 py-4">
+                      <div className="flex gap-2 items-end border p-4 rounded-md bg-muted/20">
+                        <div className="w-1/3">
+                          <Label>Código</Label>
+                          <Input
+                            value={newUnidade.codigo}
+                            onChange={(e) => setNewUnidade({ ...newUnidade, codigo: e.target.value })}
+                            placeholder="Ex: 10.01"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <Label>Nome</Label>
+                          <Input
+                            value={newUnidade.nome}
+                            onChange={(e) => setNewUnidade({ ...newUnidade, nome: e.target.value })}
+                            placeholder="Ex: Gabinete do Secretário"
+                          />
+                        </div>
+                        <Button onClick={handleAddUnidade}>
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="rounded-md border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Código</TableHead>
+                              <TableHead>Nome</TableHead>
+                              <TableHead className="w-[100px]">Ações</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {unidades.map((item) => (
+                              <TableRow key={item.id}>
+                                <TableCell>{item.codigo}</TableCell>
+                                <TableCell>{item.nome}</TableCell>
+                                <TableCell>
+                                  <Button variant="ghost" size="icon" onClick={() => deleteUnidade(item.id)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            {unidades.length === 0 && (
+                              <TableRow>
+                                <TableCell colSpan={3} className="text-center text-muted-foreground">
+                                  Nenhuma unidade cadastrada.
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="rubricas" className="space-y-4 py-4">
+                      <div className="flex gap-2 items-end border p-4 rounded-md bg-muted/20">
+                        <div className="w-1/3">
+                          <Label>Código</Label>
+                          <Input
+                            value={newRubrica.codigo}
+                            onChange={(e) => setNewRubrica({ ...newRubrica, codigo: e.target.value })}
+                            placeholder="Ex: 33.90.30"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <Label>Descrição</Label>
+                          <Input
+                            value={newRubrica.descricao}
+                            onChange={(e) => setNewRubrica({ ...newRubrica, descricao: e.target.value })}
+                            placeholder="Ex: Material de Consumo"
+                          />
+                        </div>
+                        <Button onClick={handleAddRubrica}>
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="rounded-md border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Código</TableHead>
+                              <TableHead>Descrição</TableHead>
+                              <TableHead className="w-[100px]">Ações</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {rubricas.map((item) => (
+                              <TableRow key={item.id}>
+                                <TableCell>{item.codigo}</TableCell>
+                                <TableCell>{item.descricao}</TableCell>
+                                <TableCell>
+                                  <Button variant="ghost" size="icon" onClick={() => deleteRubrica(item.id)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            {rubricas.length === 0 && (
+                              <TableRow>
+                                <TableCell colSpan={3} className="text-center text-muted-foreground">
+                                  Nenhuma rubrica cadastrada.
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 </DialogContent>
               </Dialog>
             </div>

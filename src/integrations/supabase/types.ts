@@ -436,6 +436,79 @@ export type Database = {
           },
         ]
       }
+      unidades_orcamentarias: {
+        Row: {
+          id: string
+          uasg_id: string
+          codigo: string
+          nome: string
+          descricao: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          uasg_id: string
+          codigo: string
+          nome: string
+          descricao?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          uasg_id?: string
+          codigo?: string
+          nome?: string
+          descricao?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unidades_orcamentarias_uasg_id_fkey"
+            columns: ["uasg_id"]
+            isOneToOne: false
+            referencedRelation: "uasgs"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      rubricas: {
+        Row: {
+          id: string
+          uasg_id: string
+          codigo: string
+          descricao: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          uasg_id: string
+          codigo: string
+          descricao: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          uasg_id?: string
+          codigo?: string
+          descricao?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rubricas_uasg_id_fkey"
+            columns: ["uasg_id"]
+            isOneToOne: false
+            referencedRelation: "uasgs"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
