@@ -30,8 +30,12 @@ const AreasRequisitantes = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const selectedUasg = uasgs.find(u => u.id === selectedUasgId);
   const handleAddArea = async () => {
-    if (!newArea.nome || !selectedUasgId) {
-      toast.error("Preencha todos os campos obrigatórios e selecione uma UNIDADE GESTORA");
+    const errors = [];
+    if (!selectedUasgId) errors.push("Selecione uma UNIDADE GESTORA");
+    if (!newArea.nome) errors.push("Preencha o Nome da área requisitante");
+
+    if (errors.length > 0) {
+      toast.error(errors.join("\n"));
       return;
     }
     const disponibilidade = parseFloat(newArea.disponibilidadeOrcamentaria.replace(/\./g, "").replace(",", ".")) || 0;
@@ -147,7 +151,7 @@ const AreasRequisitantes = () => {
       <Tabs defaultValue="minha-uasg" className="space-y-6">
         <TabsList className="grid w-full md:w-1/2 grid-cols-2">
           <TabsTrigger value="minha-uasg">Áreas da UNIDADE GESTORA</TabsTrigger>
-          <TabsTrigger value="outras-uasgs" disabled>
+          <TabsTrigger value="outras-uasgs">
             Áreas de outras UNIDADES GESTORAS
           </TabsTrigger>
         </TabsList>

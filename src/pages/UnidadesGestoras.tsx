@@ -20,7 +20,7 @@ const UnidadesGestoras = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUasg, setEditingUasg] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  
+
   const [formData, setFormData] = useState({
     numero_uasg: "",
     nome: "",
@@ -38,8 +38,8 @@ const UnidadesGestoras = () => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.numero_uasg || !formData.nome) {
-      toast.error("Preencha número e nome da UNIDADE GESTORA");
+    if (!formData.nome) {
+      toast.error("Preencha o nome da UNIDADE GESTORA");
       return;
     }
 
@@ -48,7 +48,6 @@ const UnidadesGestoras = () => {
     ) || 0;
 
     const uasgData = {
-      numero_uasg: formData.numero_uasg,
       nome: formData.nome,
       unidades_orcamentarias: formData.unidades_orcamentarias || null,
       rubricas: formData.rubricas || null,
@@ -214,11 +213,10 @@ const UnidadesGestoras = () => {
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label>Número da UNIDADE GESTORA *</Label>
                         <Input
-                          value={formData.numero_uasg}
-                          onChange={(e) => setFormData({ ...formData, numero_uasg: e.target.value })}
-                          placeholder="Ex: 123456"
+                          value={editingUasg ? formData.numero_uasg : "Gerado automaticamente"}
+                          disabled
+                          className="bg-muted"
                         />
                       </div>
                       <div>
@@ -266,17 +264,21 @@ const UnidadesGestoras = () => {
                           <SelectValue placeholder="Selecione um agente público" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Nenhum</SelectItem>
-                          {agentes.map((agente) => (
-                            <SelectItem key={agente.id} value={agente.id}>
-                              {agente.nome} - {agente.cpf}
-                            </SelectItem>
-                          ))}
+                          <SelectItem value="none_selection">Nenhum</SelectItem>
+                          {agentes && agentes.length > 0 ? (
+                            agentes.map((agente) => (
+                              <SelectItem key={agente.id} value={agente.id}>
+                                {agente.nome} - {agente.cpf}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="loading" disabled>Carregando agentes...</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
-                  <DialogFooter>
+                  <DialogFooter className="mt-4">
                     <Button variant="outline" onClick={() => setDialogOpen(false)}>
                       Cancelar
                     </Button>
@@ -318,7 +320,7 @@ const UnidadesGestoras = () => {
                       <TableRow key={uasg.id}>
                         <TableCell className="font-medium">{uasg.numero_uasg}</TableCell>
                         <TableCell>{uasg.nome}</TableCell>
-                        <TableCell>{getOrdenadorNome((uasg as Record<string, unknown>).ordenador_despesa_id as string | null)}</TableCell>
+                        <TableCell>{getOrdenadorNome(uasg.ordenador_despesa_id || null)}</TableCell>
                         <TableCell>{formatCurrency(uasg.disponibilidade_orcamentaria)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">

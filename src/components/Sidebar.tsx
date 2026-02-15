@@ -7,7 +7,9 @@ import {
     FolderKanban,
     BarChart3,
     CheckCircle2,
-    Home
+    Home,
+    FileCode,
+    ShieldAlert
 } from "lucide-react";
 
 export function Sidebar() {
@@ -51,6 +53,16 @@ export function Sidebar() {
             icon: CheckCircle2,
             title: "Aprovação PCA",
             href: "/aprovacao-pca",
+        },
+        {
+            icon: FileCode,
+            title: "Modelos",
+            href: "/modelos",
+        },
+        {
+            icon: ShieldAlert,
+            title: "Auditoria",
+            href: "/auditoria",
         }
     ];
 

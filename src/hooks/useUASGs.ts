@@ -7,6 +7,9 @@ export interface UASG {
   numero_uasg: string;
   nome: string;
   disponibilidade_orcamentaria: number;
+  unidades_orcamentarias?: string | null;
+  rubricas?: string | null;
+  ordenador_despesa_id?: string | null;
 }
 
 export function useUASGs() {

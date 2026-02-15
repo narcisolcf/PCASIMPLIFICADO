@@ -13,6 +13,7 @@ import { Plus, Trash2, Edit, BookOpen, AlertTriangle } from "lucide-react";
 import { SelecionarItemCatalogo } from "./SelecionarItemCatalogo";
 import { useCatalogoItens, type CatalogoItem } from "@/hooks/useCatalogoItens";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Material {
   id: string;
@@ -40,7 +41,38 @@ export function MateriaisServicos({ dfdId, onTotalChange, localMateriais = [], o
   const [editingId, setEditingId] = useState<string | null>(null);
   const [alertaSimilaridade, setAlertaSimilaridade] = useState<{ item: CatalogoItem; show: boolean } | null>(null);
   const { toast } = useToast();
-  const { itens: catalogoItens } = useCatalogoItens();
+  const { itens: catalogoItens, createItem: createCatalogoItem } = useCatalogoItens();
+  const [salvarNoCatalogo, setSalvarNoCatalogo] = useState(false);
+  const [unidades, setUnidades] = useState<{ id: string, sigla: string, nome: string }[]>([]);
+  const [newUnidadeOpen, setNewUnidadeOpen] = useState(false);
+  const [newUnidadeSigla, setNewUnidadeSigla] = useState("");
+  const [newUnidadeNome, setNewUnidadeNome] = useState("");
+
+  useEffect(() => {
+    const fetchUnidades = async () => {
+      const { data } = await supabase.from("unidade_medidas").select("*").order("sigla");
+      if (data) setUnidades(data);
+    };
+    fetchUnidades();
+  }, []);
+
+  const handleCreateUnidade = async () => {
+    if (!newUnidadeSigla || !newUnidadeNome) {
+      toast({ title: "Erro", description: "Preencha sigla e nome", variant: "destructive" });
+      return;
+    }
+    const { data, error } = await supabase.from("unidade_medidas").insert([{ sigla: newUnidadeSigla, nome: newUnidadeNome }]).select().single();
+    if (error) {
+      toast({ title: "Erro", description: "Erro ao criar unidade", variant: "destructive" });
+    } else {
+      setUnidades([...unidades, data]);
+      setFormData({ ...formData, unidade_medida: data.sigla });
+      setNewUnidadeOpen(false);
+      setNewUnidadeSigla("");
+      setNewUnidadeNome("");
+      toast({ title: "Sucesso", description: "Unidade criada!" });
+    }
+  };
 
   // PADRÃO LOCAL-FIRST:
   // - Se dfdId for null: opera em modo local (memória) usando localMateriais
@@ -92,7 +124,7 @@ export function MateriaisServicos({ dfdId, onTotalChange, localMateriais = [], o
     }
 
     setMateriais(data || []);
-    
+
     // Calcular total e notificar
     const total = (data || []).reduce((acc, m) => acc + (m.valor_total || 0), 0);
     onTotalChange?.(total);
@@ -101,30 +133,30 @@ export function MateriaisServicos({ dfdId, onTotalChange, localMateriais = [], o
   // Função para verificar similaridade com catálogo
   const verificarSimilaridade = (descricao: string): CatalogoItem | null => {
     const descricaoNormalizada = descricao.toLowerCase().trim();
-    
+
     // Verificar se já existe no catálogo com descrição exata ou muito similar
     for (const item of catalogoItens) {
       const itemDescricaoNormalizada = item.descricao.toLowerCase().trim();
-      
+
       // Verificação exata
       if (itemDescricaoNormalizada === descricaoNormalizada) {
         return item;
       }
-      
+
       // Verificação de similaridade (>80% de palavras em comum)
       const palavrasItem = itemDescricaoNormalizada.split(/\s+/);
       const palavrasUsuario = descricaoNormalizada.split(/\s+/);
-      
+
       if (palavrasItem.length >= 3 && palavrasUsuario.length >= 3) {
         const palavrasComuns = palavrasItem.filter(p => palavrasUsuario.includes(p));
         const similaridade = palavrasComuns.length / Math.max(palavrasItem.length, palavrasUsuario.length);
-        
+
         if (similaridade > 0.8) {
           return item;
         }
       }
     }
-    
+
     return null;
   };
 
@@ -140,10 +172,10 @@ export function MateriaisServicos({ dfdId, onTotalChange, localMateriais = [], o
 
     // Verificar se já existe no DFD (evitar duplicação)
     const descricaoNormalizada = formData.descricao.toLowerCase().trim();
-    const jaExiste = materiaisExibidos.some(m => 
+    const jaExiste = materiaisExibidos.some(m =>
       m.descricao.toLowerCase().trim() === descricaoNormalizada && m.id !== editingId
     );
-    
+
     if (jaExiste) {
       toast({
         title: "Item duplicado",
@@ -311,6 +343,7 @@ export function MateriaisServicos({ dfdId, onTotalChange, localMateriais = [], o
       valor_unitario: "",
       justificativa: "",
     });
+    setSalvarNoCatalogo(false);
     setEditingId(null);
   };
 
@@ -346,7 +379,7 @@ export function MateriaisServicos({ dfdId, onTotalChange, localMateriais = [], o
     return materiaisExibidos
       .map(m => {
         // Tentar encontrar o item no catálogo pela descrição ou código
-        const itemCatalogo = catalogoItens.find(c => 
+        const itemCatalogo = catalogoItens.find(c =>
           (c.codigo_item && c.codigo_item === m.codigo_item) ||
           c.descricao.toLowerCase() === m.descricao.toLowerCase()
         );
@@ -358,7 +391,7 @@ export function MateriaisServicos({ dfdId, onTotalChange, localMateriais = [], o
   const handleSelectMultipleFromCatalogo = async (items: CatalogoItem[]) => {
     // Filtrar itens que já foram adicionados
     const itensParaAdicionar = items.filter(item => {
-      const jaExiste = materiaisExibidos.some(m => 
+      const jaExiste = materiaisExibidos.some(m =>
         (item.codigo_item && m.codigo_item === item.codigo_item) ||
         m.descricao.toLowerCase().trim() === item.descricao.toLowerCase().trim()
       );
@@ -445,7 +478,7 @@ export function MateriaisServicos({ dfdId, onTotalChange, localMateriais = [], o
 
       loadMateriais();
     }
-    
+
     toast({
       title: "Sucesso",
       description: `${itensParaAdicionar.length} item(ns) adicionado(s) com sucesso`,
@@ -490,123 +523,159 @@ export function MateriaisServicos({ dfdId, onTotalChange, localMateriais = [], o
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingId ? "Editar" : "Adicionar"} Material/Serviço
-                </DialogTitle>
-                <DialogDescription>
-                  Preencha as informações do material ou serviço
-                </DialogDescription>
-              </DialogHeader>
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingId ? "Editar" : "Adicionar"} Material/Serviço
+                  </DialogTitle>
+                  <DialogDescription>
+                    Preencha as informações do material ou serviço
+                  </DialogDescription>
+                </DialogHeader>
 
-              <div className="space-y-4 py-4">
-                <div>
-                  <Label>Tipo *</Label>
-                  <Select
-                    value={formData.tipo}
-                    onValueChange={(value) => setFormData({ ...formData, tipo: value as "Material" | "Serviço" })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Material">Material</SelectItem>
-                      <SelectItem value="Serviço">Serviço</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    ℹ️ Código do item será gerado automaticamente no formato MS-XXXXXX
-                  </p>
-                </div>
-
-                <div>
-                  <Label>Descrição *</Label>
-                  <Textarea
-                    value={formData.descricao}
-                    onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-                    placeholder="Descreva o material ou serviço"
-                    className="min-h-[80px]"
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-4 py-4">
                   <div>
-                    <Label>Quantidade *</Label>
-                    <Input
-                      type="number"
-                      value={formData.quantidade}
-                      onChange={(e) =>
-                        setFormData({ ...formData, quantidade: e.target.value })
-                      }
-                      min="1"
-                    />
-                  </div>
-                  <div>
-                    <Label>Unidade de Medida *</Label>
+                    <Label>Tipo *</Label>
                     <Select
-                      value={formData.unidade_medida}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, unidade_medida: value })
-                      }
+                      value={formData.tipo}
+                      onValueChange={(value) => setFormData({ ...formData, tipo: value as "Material" | "Serviço" })}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="UN">Unidade (UN)</SelectItem>
-                        <SelectItem value="KG">Quilograma (KG)</SelectItem>
-                        <SelectItem value="M">Metro (M)</SelectItem>
-                        <SelectItem value="M2">Metro Quadrado (M²)</SelectItem>
-                        <SelectItem value="L">Litro (L)</SelectItem>
-                        <SelectItem value="CX">Caixa (CX)</SelectItem>
-                        <SelectItem value="PC">Peça (PC)</SelectItem>
+                        <SelectItem value="Material">Material</SelectItem>
+                        <SelectItem value="Serviço">Serviço</SelectItem>
                       </SelectContent>
                     </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ℹ️ Código do item será gerado automaticamente no formato MS-XXXXXX
+                    </p>
                   </div>
+
+                  {!editingId && (
+                    <div className="flex items-center space-x-2 bg-muted p-2 rounded-md">
+                      <Checkbox
+                        id="save-catalog"
+                        checked={salvarNoCatalogo}
+                        onCheckedChange={(c) => setSalvarNoCatalogo(!!c)}
+                      />
+                      <Label htmlFor="save-catalog" className="cursor-pointer">
+                        Salvar também no Catálogo Global?
+                        <p className="text-xs text-muted-foreground font-normal">
+                          Se marcado, este item ficará disponível para outros departamentos.
+                        </p>
+                      </Label>
+                    </div>
+                  )}
+
                   <div>
-                    <Label>Valor Unitário (R$) *</Label>
-                    <Input
-                      value={formData.valor_unitario}
+                    <Label>Descrição *</Label>
+                    <Textarea
+                      value={formData.descricao}
+                      onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                      placeholder="Descreva o material ou serviço"
+                      className="min-h-[80px]"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label>Quantidade *</Label>
+                      <Input
+                        type="number"
+                        value={formData.quantidade}
+                        onChange={(e) =>
+                          setFormData({ ...formData, quantidade: e.target.value })
+                        }
+                        min="1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Unidade de Medida *</Label>
+                      <div className="flex gap-2">
+                        <Select
+                          value={formData.unidade_medida}
+                          onValueChange={(value) =>
+                            setFormData({ ...formData, unidade_medida: value })
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {unidades.map(u => (
+                              <SelectItem key={u.id} value={u.sigla}>{u.sigla} - {u.nome}</SelectItem>
+                            ))}
+                            <SelectItem value="UN">UN - Unidade (Padrão)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Dialog open={newUnidadeOpen} onOpenChange={setNewUnidadeOpen}>
+                          <DialogTrigger asChild>
+                            <Button size="icon" variant="outline" type="button" title="Nova Unidade">
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader><DialogTitle>Nova Unidade</DialogTitle></DialogHeader>
+                            <div className="space-y-4 py-4">
+                              <div className="space-y-2">
+                                <Label>Sigla</Label>
+                                <Input value={newUnidadeSigla} onChange={e => setNewUnidadeSigla(e.target.value)} maxLength={5} placeholder="Ex: CX" />
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Nome</Label>
+                                <Input value={newUnidadeNome} onChange={e => setNewUnidadeNome(e.target.value)} placeholder="Ex: Caixa" />
+                              </div>
+                              <Button onClick={handleCreateUnidade} type="button">Salvar</Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Valor Unitário (R$) *</Label>
+                      <Input
+                        value={formData.valor_unitario}
+                        onChange={(e) =>
+                          setFormData({ ...formData, valor_unitario: e.target.value })
+                        }
+                        placeholder="0,00"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Valor Total</Label>
+                    <Input value={formatCurrency(calcularValorTotal())} disabled />
+                  </div>
+
+                  <div>
+                    <Label>Justificativa</Label>
+                    <Textarea
+                      value={formData.justificativa}
                       onChange={(e) =>
-                        setFormData({ ...formData, valor_unitario: e.target.value })
+                        setFormData({ ...formData, justificativa: e.target.value })
                       }
-                      placeholder="0,00"
+                      placeholder="Justifique a necessidade deste item"
+                      className="min-h-[80px]"
                     />
                   </div>
                 </div>
 
-                <div>
-                  <Label>Valor Total</Label>
-                  <Input value={formatCurrency(calcularValorTotal())} disabled />
-                </div>
-
-                <div>
-                  <Label>Justificativa</Label>
-                  <Textarea
-                    value={formData.justificativa}
-                    onChange={(e) =>
-                      setFormData({ ...formData, justificativa: e.target.value })
-                    }
-                    placeholder="Justifique a necessidade deste item"
-                    className="min-h-[80px]"
-                  />
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleSubmit}>
-                  {editingId ? "Atualizar" : "Adicionar"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleSubmit}>
+                    {editingId ? "Atualizar" : "Adicionar"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </CardHeader>
-      
+
       <SelecionarItemCatalogo
         open={catalogoDialogOpen}
         onOpenChange={setCatalogoDialogOpen}
@@ -656,11 +725,11 @@ export function MateriaisServicos({ dfdId, onTotalChange, localMateriais = [], o
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      
+
       <CardContent>
         {materiaisExibidos.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            {isLocalMode 
+            {isLocalMode
               ? "Adicione os materiais ou serviços necessários. Eles serão salvos quando você salvar o DFD."
               : "Adicione os materiais ou serviços necessários para esta contratação"
             }

@@ -21,7 +21,8 @@
       "Bash(pip3 cache purge:*)",
       "Bash(brew install:*)",
       "Bash(npm run lint:*)",
-      "Bash(npm audit:*)"
+      "Bash(npm audit:*)",
+      "Bash(vercel:*)"
     ],
     "deny": [],
     "ask": []

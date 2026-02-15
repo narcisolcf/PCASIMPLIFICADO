@@ -409,7 +409,7 @@ export type Database = {
           disponibilidade_orcamentaria?: number
           id?: string
           nome: string
-          numero_uasg: string
+          numero_uasg?: string
           ordenador_despesa_id?: string | null
           rubricas?: string | null
           unidades_orcamentarias?: string | null

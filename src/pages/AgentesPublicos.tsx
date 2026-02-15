@@ -23,7 +23,7 @@ const AgentesPublicos = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showNewCargoInput, setShowNewCargoInput] = useState(false);
   const [newCargoNome, setNewCargoNome] = useState("");
-  
+
   const [formData, setFormData] = useState({
     nome: "",
     cpf: "",
@@ -71,7 +71,7 @@ const AgentesPublicos = () => {
       toast.error("Digite o nome do cargo");
       return;
     }
-    
+
     const success = await addCargo(newCargoNome.trim());
     if (success) {
       setNewCargoNome("");
@@ -290,7 +290,7 @@ const AgentesPublicos = () => {
                           </Command>
                         </PopoverContent>
                       </Popover>
-                      
+
                       {showNewCargoInput && (
                         <div className="mt-2 flex gap-2">
                           <Input
@@ -301,12 +301,12 @@ const AgentesPublicos = () => {
                           <Button onClick={handleAddNewCargo} size="sm">
                             Adicionar
                           </Button>
-                          <Button 
+                          <Button
                             onClick={() => {
                               setShowNewCargoInput(false);
                               setNewCargoNome("");
-                            }} 
-                            size="sm" 
+                            }}
+                            size="sm"
                             variant="outline"
                           >
                             Cancelar
@@ -392,24 +392,24 @@ const AgentesPublicos = () => {
                           <TableCell>{agente.email || "-"}</TableCell>
                           <TableCell>{agente.email_corporativo || "-"}</TableCell>
                           <TableCell>{formatTelefone(agente.telefone || "")}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEdit(agente)}
-                            >
-                              <Edit className="h-4 w-4 text-primary" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDelete(agente.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEdit(agente)}
+                              >
+                                <Edit className="h-4 w-4 text-primary" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(agente.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       );
                     })}
