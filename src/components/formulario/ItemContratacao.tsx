@@ -35,7 +35,7 @@ const PRIORIDADES: Array<{ valor: GrauPrioridade; texto: string; cor: string }> 
 ];
 
 export function ItemContratacao({ item, numero, onChange, onRemover, podeRemover }: Props) {
-  function handleChange(campo: keyof ItemType, valor: any) {
+  function handleChange(campo: keyof ItemType, valor: ItemType[keyof ItemType]) {
     const itemAtualizado = { ...item, [campo]: valor };
 
     // Recalcular valor total se quantidade ou valor unitário mudaram
@@ -65,7 +65,7 @@ export function ItemContratacao({ item, numero, onChange, onRemover, podeRemover
             <CardTitle className="text-lg">
               Item {numero.toString().padStart(2, "0")}
             </CardTitle>
-            <Badge variant={prioridadeInfo?.cor as any}>
+            <Badge variant={prioridadeInfo?.cor as "default" | "destructive" | "secondary" | "outline" | null | undefined}>
               Prioridade: {item.prioridade}
             </Badge>
             <Badge variant="outline">{item.tipo}</Badge>

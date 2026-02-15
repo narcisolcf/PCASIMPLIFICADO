@@ -56,7 +56,7 @@ export const validateCNPJ = (cnpj: string): boolean => {
   for (let i = 0; i < 12; i++) {
     sum += parseInt(sanitized.charAt(i)) * weights1[i];
   }
-  let digit1 = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+  const digit1 = sum % 11 < 2 ? 0 : 11 - (sum % 11);
 
   // Calculate second verification digit
   const weights2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
@@ -64,7 +64,7 @@ export const validateCNPJ = (cnpj: string): boolean => {
   for (let i = 0; i < 13; i++) {
     sum += parseInt(sanitized.charAt(i)) * weights2[i];
   }
-  let digit2 = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+  const digit2 = sum % 11 < 2 ? 0 : 11 - (sum % 11);
 
   return (
     parseInt(sanitized.charAt(12)) === digit1 &&

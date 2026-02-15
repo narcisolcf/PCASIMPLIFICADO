@@ -118,7 +118,7 @@ const AgentesPublicos = () => {
     }
   };
 
-  const handleEdit = (agente: any) => {
+  const handleEdit = (agente: { id: string; nome: string; cpf: string; email?: string | null; email_corporativo?: string | null; telefone?: string | null; cargo_id?: string | null }) => {
     setEditingAgente(agente.id);
     setFormData({
       nome: agente.nome,

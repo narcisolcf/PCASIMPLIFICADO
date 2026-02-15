@@ -80,6 +80,7 @@ export function ResponsaveisDFD({ dfdId, localResponsaveis = [], onLocalResponsa
       return;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const responsaveisFormatados = (data || []).map((r: any) => ({
       id: r.id,
       funcao: r.funcoes?.nome || r.funcao,

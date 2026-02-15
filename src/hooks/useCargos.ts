@@ -55,10 +55,10 @@ export function useCargos() {
 
       await loadCargos();
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao adicionar cargo:", error);
-      
-      if (error.message?.includes("duplicate")) {
+
+      if (error instanceof Error && error.message?.includes("duplicate")) {
         toast({
           title: "Erro",
           description: "Este cargo já existe",
@@ -94,10 +94,10 @@ export function useCargos() {
 
       await loadCargos();
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao atualizar cargo:", error);
-      
-      if (error.message?.includes("duplicate")) {
+
+      if (error instanceof Error && error.message?.includes("duplicate")) {
         toast({
           title: "Erro",
           description: "Este cargo já existe",

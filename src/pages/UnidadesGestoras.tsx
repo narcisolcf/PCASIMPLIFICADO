@@ -85,13 +85,13 @@ const UnidadesGestoras = () => {
       });
       setEditingUasg(null);
       reload();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao salvar UNIDADE GESTORA:", error);
       toast.error("Falha ao salvar UNIDADE GESTORA");
     }
   };
 
-  const handleEdit = (uasg: any) => {
+  const handleEdit = (uasg: { id: string; numero_uasg: string; nome: string; unidades_orcamentarias?: string | null; rubricas?: string | null; ordenador_despesa_id?: string | null; disponibilidade_orcamentaria: number }) => {
     setEditingUasg(uasg.id);
     setFormData({
       numero_uasg: uasg.numero_uasg,
@@ -318,7 +318,7 @@ const UnidadesGestoras = () => {
                       <TableRow key={uasg.id}>
                         <TableCell className="font-medium">{uasg.numero_uasg}</TableCell>
                         <TableCell>{uasg.nome}</TableCell>
-                        <TableCell>{getOrdenadorNome((uasg as any).ordenador_despesa_id)}</TableCell>
+                        <TableCell>{getOrdenadorNome((uasg as Record<string, unknown>).ordenador_despesa_id as string | null)}</TableCell>
                         <TableCell>{formatCurrency(uasg.disponibilidade_orcamentaria)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">

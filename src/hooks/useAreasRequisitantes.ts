@@ -63,10 +63,10 @@ export function useAreasRequisitantes(uasgId?: string) {
 
       await loadAreas();
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao adicionar área:", error);
-      
-      if (error.message?.includes("excede a disponibilidade da UASG")) {
+
+      if (error instanceof Error && error.message?.includes("excede a disponibilidade da UASG")) {
         toast({
           title: "Erro de Validação",
           description: error.message,

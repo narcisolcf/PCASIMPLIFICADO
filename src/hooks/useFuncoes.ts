@@ -55,10 +55,10 @@ export function useFuncoes() {
 
       await loadFuncoes();
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao adicionar função:", error);
-      
-      if (error.message?.includes("duplicate")) {
+
+      if (error instanceof Error && error.message?.includes("duplicate")) {
         toast({
           title: "Erro",
           description: "Esta função já existe",

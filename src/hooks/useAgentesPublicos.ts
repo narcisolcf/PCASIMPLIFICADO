@@ -86,10 +86,10 @@ export function useAgentesPublicos() {
 
       await loadAgentes();
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao criar agente:", error);
-      
-      if (error.message?.includes("duplicate key")) {
+
+      if (error instanceof Error && error.message?.includes("duplicate key")) {
         toast({
           title: "Erro",
           description: "CPF já cadastrado no sistema",

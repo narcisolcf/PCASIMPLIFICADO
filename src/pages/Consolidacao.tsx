@@ -95,6 +95,7 @@ const Consolidacao = () => {
       // Process and aggregate data
       const aggregated: Record<string, ClasseDFD> = {};
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       data?.forEach((item: any) => {
         // Derive class from codigo_item or generic
         const codigo = item.codigo_item || "000000";

@@ -14,7 +14,14 @@
       "Bash(npm install:*)",
       "Bash(npx supabase --version)",
       "Bash(npx supabase:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(docker:*)",
+      "Bash(brew cleanup:*)",
+      "Bash(pip cache:*)",
+      "Bash(pip3 cache purge:*)",
+      "Bash(brew install:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm audit:*)"
     ],
     "deny": [],
     "ask": []

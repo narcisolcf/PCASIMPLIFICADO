@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, ClipboardList, FolderKanban, CheckCircle2, BarChart3, Package, Database } from "lucide-react";
+import { FileText, ClipboardList, FolderKanban, CheckCircle2, BarChart3, Package, Database, FileCode, ShieldAlert } from "lucide-react";
+import { DashboardMetrics } from "@/components/dashboard/DashboardMetrics";
 
 const Index = () => {
   const menuItems = [
@@ -11,6 +12,13 @@ const Index = () => {
       description: "Gerencie cadastros básicos: UNIDADES GESTORAS, Agentes Públicos e Orçamento",
       href: "/cadastros",
       color: "text-info"
+    },
+    {
+      icon: ShieldAlert,
+      title: "Auditoria (Admin)",
+      description: "Logs de segurança e rastreabilidade de ações",
+      href: "/auditoria",
+      color: "text-destructive"
     },
     {
       icon: FileText,
@@ -53,6 +61,13 @@ const Index = () => {
       description: "Aprovar e acompanhar o Plano de Contratação Anual",
       href: "/aprovacao-pca",
       color: "text-success"
+    },
+    {
+      icon: FileCode,
+      title: "Modelos e Minutas",
+      description: "Biblioteca de modelos (ETP, TR, Contratos) para download",
+      href: "/modelos",
+      color: "text-purple-600"
     }
   ];
 
@@ -73,6 +88,10 @@ const Index = () => {
       </header>
 
       <main className="container mx-auto px-6 py-8">
+        <div className="mb-8">
+          <DashboardMetrics />
+        </div>
+
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-foreground mb-2">Área de Trabalho</h2>
           <p className="text-muted-foreground">

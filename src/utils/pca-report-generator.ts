@@ -106,7 +106,6 @@ export const generatePCAReport = (data: PCAReportData) => {
     // Security 48% (172 degrees), Education 12% (43 deg), Infra 6%...
     // Note: For a real chart we'd calculate start/end angles properly. 
     // Simplified vector drawing for demo:
-    let startAngle = 0;
     data.secretarias.forEach(sec => {
         // Calculate slice angle based on value (simplified to item count for visual variety if needed, or stick to value)
         const portion = sec.valorTotal / (data.valorTotalGeral || 1); // Avoid division by zero

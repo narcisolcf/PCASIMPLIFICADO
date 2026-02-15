@@ -117,7 +117,10 @@ const DFDs = () => {
     switch (situacao) {
       case "Vinculado a contratação": return "bg-success text-success-foreground";
       case "Rascunho": return "bg-muted text-muted-foreground";
-      case "Enviado": return "bg-info text-info-foreground";
+      case "Enviado": return "bg-blue-500 text-white";
+      case "Em Análise": return "bg-yellow-500 text-white";
+      case "Correção Solicitada": return "bg-orange-500 text-white";
+      case "Aprovado": return "bg-green-600 text-white";
       default: return "bg-secondary text-secondary-foreground";
     }
   };

@@ -78,7 +78,7 @@ declare module 'jspdf-autotable' {
     pageNumber: number;
     pageCount: number;
     settings: UserOptions;
-    table: any;
+    table: unknown;
     doc: jsPDF;
     cursor: { x: number; y: number };
   }

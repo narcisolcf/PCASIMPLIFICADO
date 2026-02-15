@@ -86,6 +86,7 @@ export function exportDFDtoPDF(data: DFDData) {
     },
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   yPosition = (doc as any).lastAutoTable.finalY + 10;
 
   // Descrição Sucinta
@@ -159,6 +160,7 @@ export function exportDFDtoPDF(data: DFDData) {
       },
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     yPosition = (doc as any).lastAutoTable.finalY + 10;
   } else {
     doc.setFont("helvetica", "normal");
@@ -206,6 +208,7 @@ export function exportDFDtoPDF(data: DFDData) {
       },
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     yPosition = (doc as any).lastAutoTable.finalY + 10;
   } else {
     doc.setFont("helvetica", "normal");
@@ -248,6 +251,7 @@ export function exportDFDtoPDF(data: DFDData) {
       },
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     yPosition = (doc as any).lastAutoTable.finalY + 10;
   } else {
     doc.setFont("helvetica", "normal");

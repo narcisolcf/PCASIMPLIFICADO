@@ -240,10 +240,10 @@ export function useFormularioPCA() {
         title: "Sucesso!",
         description: resultado.mensagem,
       });
-    } catch (erro: any) {
+    } catch (erro: unknown) {
       console.error("Erro ao enviar PCA:", erro);
 
-      const mensagemErro = erro.message || "Erro ao enviar requisição. Verifique os dados.";
+      const mensagemErro = erro instanceof Error ? erro.message : "Erro ao enviar requisição. Verifique os dados.";
 
       setErros({
         geral: mensagemErro,

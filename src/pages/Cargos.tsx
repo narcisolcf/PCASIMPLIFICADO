@@ -42,7 +42,7 @@ const Cargos = () => {
     }
   };
 
-  const handleEdit = (cargo: any) => {
+  const handleEdit = (cargo: { id: string; nome: string; descricao?: string | null }) => {
     setEditingCargo(cargo.id);
     setFormData({
       nome: cargo.nome,

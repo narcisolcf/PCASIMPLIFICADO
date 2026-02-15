@@ -9,9 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Calendar as CalendarIcon, Save, FileDown, Plus, Loader2 } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Link, useParams } from "react-router-dom";
+import { ArrowLeft, Calendar as CalendarIcon, Save, FileDown, Plus, Loader2, Check, X, AlertTriangle, Send } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -22,6 +22,8 @@ import { useAreasRequisitantes } from "@/hooks/useAreasRequisitantes";
 import { useUASGs } from "@/hooks/useUASGs";
 import { supabase } from "@/integrations/supabase/client";
 import { exportDFDtoPDF } from "@/utils/exportDFDtoPDF";
+import { useRBAC } from "@/hooks/useRBAC";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // ... imports 
 
@@ -37,14 +39,24 @@ const NovoDFD = () => {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [valorTotal, setValorTotal] = useState(0);
-  const [localMateriais, setLocalMateriais] = useState<any[]>([]);
-  const [localResponsaveis, setLocalResponsaveis] = useState<any[]>([]);
+  const [localMateriais, setLocalMateriais] = useState<Record<string, unknown>[]>([]);
+  const [localResponsaveis, setLocalResponsaveis] = useState<Record<string, unknown>[]>([]);
   const [novaAreaDialog, setNovaAreaDialog] = useState(false);
   const [novaAreaNome, setNovaAreaNome] = useState("");
   const [novaAreaOrcamento, setNovaAreaOrcamento] = useState("");
-  const [userName, setUserName] = useState("Carregando..."); // New state for user Name
+  const [userName, setUserName] = useState("Carregando...");
+
+  // Workflow States
+  const [situacao, setSituacao] = useState<string>("Rascunho");
+  const [motivoCorrecao, setMotivoCorrecao] = useState<string | null>(null);
+  const [correcaoDialog, setCorrecaoDialog] = useState(false);
+  const [motivoInput, setMotivoInput] = useState("");
+  const [aprovarDialog, setAprovarDialog] = useState(false);
+
   const { uasgs } = useUASGs();
   const { areas, reload: reloadAreas } = useAreasRequisitantes(selectedUasgId || undefined);
+  const { isAdmin, isGestor, isRequisitante } = useRBAC();
+  const navigate = useNavigate();
 
   // Dynamic years
   const nextYear = new Date().getFullYear() + 1;
@@ -91,6 +103,10 @@ const NovoDFD = () => {
         setDescricaoSucinta(dfdData.descricao_sucinta);
         setJustificativa(dfdData.justificativa_necessidade);
         setPrioridade(dfdData.prioridade);
+        setSituacao(dfdData.situacao || "Rascunho");
+        // @ts-expect-error - motivo_correcao exists in DB but maybe not in local types yet
+        setMotivoCorrecao(dfdData.motivo_correcao);
+
         if (dfdData.data_conclusao) {
           setDate(new Date(dfdData.data_conclusao));
         }
@@ -309,19 +325,103 @@ const NovoDFD = () => {
     }
 
     try {
+      // Requisitante sends to "Em Análise" (previously "Enviado", but logically 'Enviado' meant 'Sent to Setor de Compras')
+      // Let's use "Em Análise" to be clearer, or maintain "Enviado" as the middle step.
+      // Based on plan: "Enviado" or "Em Análise". 
+      // Let's set to "Em Análise" so Gestores see it.
+      const novoStatus = "Em Análise";
+
       const { error } = await supabase
         .from("dfds")
-        .update({ situacao: "Enviado" })
+        .update({ situacao: novoStatus })
         .eq("id", dfdId);
 
       if (error) throw error;
 
-      toast.success("DFD enviado para análise");
+      setSituacao(novoStatus);
+      toast.success("DFD enviado para análise com sucesso!");
+      navigate("/dfds");
     } catch (error) {
       console.error("Erro ao enviar DFD:", error);
       toast.error("Erro ao enviar DFD");
     }
   };
+
+  const handleAprovar = async () => {
+    if (!dfdId) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      // Buscar o agente público ID
+      const { data: agente } = await supabase.from('agentes_publicos').select('id').eq('email', user?.email).single();
+
+      const { error } = await supabase
+        .from("dfds")
+        .update({
+          situacao: "Aprovado",
+          data_aprovacao: new Date().toISOString(),
+          aprovado_por: agente?.id
+        })
+        .eq("id", dfdId);
+
+      if (error) throw error;
+
+      setSituacao("Aprovado");
+      setAprovarDialog(false);
+      toast.success("DFD Aprovado com sucesso!");
+      navigate("/dfds");
+    } catch (error) {
+      console.error("Erro ao aprovar:", error);
+      toast.error("Erro ao aprovar DFD");
+    }
+  };
+
+  const handleSolicitarCorrecao = async () => {
+    if (!dfdId || !motivoInput) {
+      toast.error("Informe o motivo da correção");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("dfds")
+        .update({
+          situacao: "Correção Solicitada",
+          motivo_correcao: motivoInput
+        })
+        .eq("id", dfdId);
+
+      if (error) throw error;
+
+      setSituacao("Correção Solicitada");
+      setCorrecaoDialog(false);
+      toast.success("Correção solicitada com sucesso!");
+      navigate("/dfds");
+    } catch (error) {
+      console.error("Erro ao solicitar correção:", error);
+      toast.error("Erro ao solicitar correção");
+    }
+  };
+
+  const getBadgeColor = (status: string) => {
+    switch (status) {
+      case "Aprovado": return "bg-green-600 hover:bg-green-700";
+      case "Correção Solicitada": return "bg-orange-500 hover:bg-orange-600";
+      case "Em Análise": return "bg-yellow-500 hover:bg-yellow-600";
+      case "Rascunho": return "bg-gray-500 hover:bg-gray-600";
+      default: return "bg-blue-500";
+    }
+  };
+
+  const podeEditar = () => {
+    if (isAdmin() || isGestor()) return true; // Admins/Gestores can validly edit? Maybe distinct edits.
+    // Requisitantes only edit in Rascunho or Correção Solicitada
+    if (isRequisitante()) {
+      return situacao === "Rascunho" || situacao === "Correção Solicitada";
+    }
+    return false;
+  };
+
 
   const handleExportarPDF = async () => {
     if (!dfdId) {
@@ -420,8 +520,8 @@ const NovoDFD = () => {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={dfdId ? "outline" : "secondary"}>
-                    {dfdId ? "RASCUNHO" : "NÃO SALVO"}
+                  <Badge className={getBadgeColor(situacao)}>
+                    {situacao.toUpperCase()}
                   </Badge>
                   {dfdId && (
                     <Button variant="outline" size="sm" onClick={handleExportarPDF}>
@@ -437,6 +537,16 @@ const NovoDFD = () => {
       </header>
 
       <main className="container mx-auto px-6 py-8">
+        {situacao === "Correção Solicitada" && motivoCorrecao && (
+          <Alert variant="destructive" className="mb-6 bg-red-50 border-red-200">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Correção Solicitada</AlertTitle>
+            <AlertDescription>
+              O Gestor solicitou correções neste DFD: <strong>{motivoCorrecao}</strong>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {!dfdId && (
           <Card className="mb-6 bg-info/10 border-info">
             <CardContent className="pt-6">
@@ -637,10 +747,35 @@ const NovoDFD = () => {
             <Button variant="outline">Voltar</Button>
           </Link>
           <div className="flex gap-3">
-            <Button onClick={handleSave} disabled={saving} className="gap-2">
-              <Save className="h-4 w-4" />
-              {saving ? "Salvando..." : "Salvar DFD"}
-            </Button>
+            {/* Botão de Salvar (Apenas se puder editar) */}
+            {podeEditar() && (
+              <Button onClick={handleSave} disabled={saving} className="gap-2">
+                <Save className="h-4 w-4" />
+                {saving ? "Salvando..." : "Salvar DFD"}
+              </Button>
+            )}
+
+            {/* Ações do Requisitante */}
+            {dfdId && (situacao === "Rascunho" || situacao === "Correção Solicitada") && (
+              <Button onClick={handleEnviar} className="gap-2 bg-blue-600 hover:bg-blue-700">
+                <Send className="h-4 w-4" />
+                Enviar para Análise
+              </Button>
+            )}
+
+            {/* Ações do Gestor/Admin */}
+            {dfdId && (situacao === "Em Análise" || situacao === "Enviado") && (isAdmin() || isGestor()) && (
+              <>
+                <Button variant="destructive" onClick={() => setCorrecaoDialog(true)} className="gap-2">
+                  <X className="h-4 w-4" />
+                  Solicitar Correção
+                </Button>
+                <Button onClick={() => setAprovarDialog(true)} className="gap-2 bg-green-600 hover:bg-green-700">
+                  <Check className="h-4 w-4" />
+                  Aprovar DFD
+                </Button>
+              </>
+            )}
             {dfdId && (
               <Button onClick={handleEnviar}>Enviar DFD</Button>
             )}
@@ -689,6 +824,47 @@ const NovoDFD = () => {
               Cancelar
             </Button>
             <Button onClick={handleCreateArea}>Criar Área</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Aprovação */}
+      <Dialog open={aprovarDialog} onOpenChange={setAprovarDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Aprovar DFD</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja aprovar este DFD? Ele ficará disponível para composição do PCA.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAprovarDialog(false)}>Cancelar</Button>
+            <Button onClick={handleAprovar} className="bg-green-600 hover:bg-green-700 text-white">Confirmar Aprovação</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Correção */}
+      <Dialog open={correcaoDialog} onOpenChange={setCorrecaoDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Solicitar Correção</DialogTitle>
+            <DialogDescription>
+              Informe o motivo pelo qual este DFD precisa de correções.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="motivo">Motivo da Correção</Label>
+            <Textarea
+              id="motivo"
+              value={motivoInput}
+              onChange={(e) => setMotivoInput(e.target.value)}
+              placeholder="Ex: Valor total inconsistente com itens..."
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCorrecaoDialog(false)}>Cancelar</Button>
+            <Button onClick={handleSolicitarCorrecao} variant="destructive">Solicitar Correção</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

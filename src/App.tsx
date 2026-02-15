@@ -6,6 +6,7 @@ import { MainLayout } from "./components/MainLayout";
 import { Loader2 } from "lucide-react";
 
 // Lazy load pages
+const Login = lazy(() => import("./pages/Login"));
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const AreasRequisitantes = lazy(() => import("./pages/AreasRequisitantes"));
@@ -20,6 +21,8 @@ const AgentesPublicos = lazy(() => import("./pages/AgentesPublicos"));
 const UnidadesGestoras = lazy(() => import("./pages/UnidadesGestoras"));
 const Orcamento = lazy(() => import("./pages/Orcamento"));
 const Cargos = lazy(() => import("./pages/Cargos"));
+const ModelsPage = lazy(() => import("./pages/ModelsPage"));
+const AuditLogs = lazy(() => import("./pages/AuditLogs"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,37 +39,55 @@ const LoadingFallback = () => (
   </div>
 );
 
+import { PrivateRoute } from "./components/PrivateRoute";
+import { RoleRoute } from "./components/RoleRoute";
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <BrowserRouter>
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
-            <Route element={<MainLayout />}>
-              <Route path="/" element={<Index />} />
+            <Route path="/login" element={<Login />} />
 
-              {/* Cadastros Routes */}
-              <Route path="/cadastros" element={<Cadastros />} />
-              <Route path="/cadastros/agentes-publicos" element={<AgentesPublicos />} />
-              <Route path="/cadastros/unidades-gestoras" element={<UnidadesGestoras />} />
-              <Route path="/cadastros/cargos" element={<Cargos />} />
-              <Route path="/cadastros/orcamento" element={<Orcamento />} />
+            <Route element={<PrivateRoute />}>
+              <Route element={<MainLayout />}>
+                <Route path="/" element={<Index />} />
 
-              {/* Modules */}
-              <Route path="/areas-requisitantes" element={<AreasRequisitantes />} />
-              <Route path="/catalogo-itens" element={<CatalogoItens />} />
+                {/* Admin Routes */}
+                <Route element={<RoleRoute allowedRoles={['admin']} />}>
+                  <Route path="/cadastros" element={<Cadastros />} />
+                  <Route path="/cadastros/agentes-publicos" element={<AgentesPublicos />} />
+                  <Route path="/cadastros/unidades-gestoras" element={<UnidadesGestoras />} />
+                  <Route path="/cadastros/cargos" element={<Cargos />} />
+                  <Route path="/cadastros/cargos" element={<Cargos />} />
+                  <Route path="/cadastros/orcamento" element={<Orcamento />} />
+                  <Route path="/auditoria" element={<AuditLogs />} />
+                </Route>
 
-              {/* DFDs Routes */}
-              <Route path="/dfds" element={<DFDs />} />
-              <Route path="/dfds/novo" element={<NovoDFD />} />
-              <Route path="/dfds/:id" element={<NovoDFD />} />
+                {/* Admin & Gestor Routes */}
+                <Route element={<RoleRoute allowedRoles={['admin', 'gestor']} />}>
+                  <Route path="/consolidacao" element={<Consolidacao />} />
+                  <Route path="/formacao-pca" element={<FormacaoPCA />} />
+                  <Route path="/aprovacao-pca" element={<AprovacaoPCA />} />
+                </Route>
 
-              <Route path="/consolidacao" element={<Consolidacao />} />
-              <Route path="/formacao-pca" element={<FormacaoPCA />} />
-              <Route path="/aprovacao-pca" element={<AprovacaoPCA />} />
+                {/* Shared Routes (All Authenticated with a Profile) */}
+                <Route element={<RoleRoute allowedRoles={['admin', 'gestor', 'requisitante']} />}>
+                  {/* Modules */}
+                  <Route path="/areas-requisitantes" element={<AreasRequisitantes />} />
+                  <Route path="/catalogo-itens" element={<CatalogoItens />} />
+                  <Route path="/modelos" element={<ModelsPage />} />
 
-              {/* Catch-all */}
-              <Route path="*" element={<NotFound />} />
+                  {/* DFDs Routes */}
+                  <Route path="/dfds" element={<DFDs />} />
+                  <Route path="/dfds/novo" element={<NovoDFD />} />
+                  <Route path="/dfds/:id" element={<NovoDFD />} />
+                </Route>
+
+                {/* Catch-all */}
+                <Route path="*" element={<NotFound />} />
+              </Route>
             </Route>
           </Routes>
         </Suspense>
