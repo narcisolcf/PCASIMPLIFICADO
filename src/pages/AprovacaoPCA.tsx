@@ -11,11 +11,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 
+interface DfdAprovacao {
+  id: string;
+  numero: number | null;
+  descricao_sucinta: string;
+  prioridade: string;
+  valor_total: number;
+  situacao: string;
+  updated_at: string;
+  areas_requisitantes: {
+    nome: string;
+    numero: number;
+    numero_uasg: string;
+  } | null;
+}
+
 export default function AprovacaoPCA() {
-  const [dfds, setDfds] = useState<any[]>([]);
+  const [dfds, setDfds] = useState<DfdAprovacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedDfd, setSelectedDfd] = useState<any>(null);
+  const [selectedDfd, setSelectedDfd] = useState<DfdAprovacao | null>(null);
   const [actionDialog, setActionDialog] = useState<"approve" | "reject" | null>(null);
   const [motivoCorrecao, setMotivoCorrecao] = useState("");
   const navigate = useNavigate();
@@ -101,7 +116,7 @@ export default function AprovacaoPCA() {
   const filteredDfds = dfds.filter(dfd =>
     dfd.descricao_sucinta?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     dfd.areas_requisitantes?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    dfd.numero?.includes(searchTerm)
+    String(dfd.numero ?? "").includes(searchTerm)
   );
 
   return (

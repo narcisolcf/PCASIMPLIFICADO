@@ -1,75 +1,99 @@
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, ClipboardList, FolderKanban, CheckCircle2, BarChart3, Package, Database, FileCode, ShieldAlert } from "lucide-react";
 import { DashboardMetrics } from "@/components/dashboard/DashboardMetrics";
+import { useRBAC, PerfilUsuario } from "@/hooks/useRBAC";
+
+interface DashboardCard {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+  href: string;
+  color: string;
+  roles: PerfilUsuario[];
+}
+
+const allCards: DashboardCard[] = [
+  {
+    icon: Database,
+    title: "Cadastros",
+    description: "Gerencie cadastros básicos: Unidades Gestoras, Agentes Públicos e Orçamento",
+    href: "/cadastros",
+    color: "text-info",
+    roles: ["admin"],
+  },
+  {
+    icon: ShieldAlert,
+    title: "Auditoria",
+    description: "Logs de segurança e rastreabilidade de ações",
+    href: "/auditoria",
+    color: "text-destructive",
+    roles: ["admin"],
+  },
+  {
+    icon: FileText,
+    title: "Áreas Requisitantes",
+    description: "Cadastre e gerencie as áreas requisitantes e distribua o orçamento anual",
+    href: "/areas-requisitantes",
+    color: "text-primary",
+    roles: ["admin", "gestor", "requisitante"],
+  },
+  {
+    icon: Package,
+    title: "Catálogo de Itens",
+    description: "Gerencie o catálogo de materiais e serviços",
+    href: "/catalogo-itens",
+    color: "text-secondary",
+    roles: ["admin", "gestor", "requisitante"],
+  },
+  {
+    icon: ClipboardList,
+    title: "Elaboração de DFDs",
+    description: "Crie e gerencie Documentos de Formalização de Demandas",
+    href: "/dfds",
+    color: "text-accent",
+    roles: ["admin", "gestor", "requisitante"],
+  },
+  {
+    icon: FolderKanban,
+    title: "Consolidação das Demandas",
+    description: "Consolide demandas por classe ou grupo",
+    href: "/consolidacao",
+    color: "text-info",
+    roles: ["admin", "gestor"],
+  },
+  {
+    icon: BarChart3,
+    title: "Formação do PCA",
+    description: "Forme o Plano de Contratação Anual",
+    href: "/formacao-pca",
+    color: "text-warning",
+    roles: ["admin", "gestor"],
+  },
+  {
+    icon: CheckCircle2,
+    title: "Aprovação do PCA",
+    description: "Aprovar e acompanhar o Plano de Contratação Anual",
+    href: "/aprovacao-pca",
+    color: "text-success",
+    roles: ["admin", "gestor"],
+  },
+  {
+    icon: FileCode,
+    title: "Modelos e Minutas",
+    description: "Biblioteca de modelos (ETP, TR, Contratos) para download",
+    href: "/modelos",
+    color: "text-purple-600",
+    roles: ["admin", "gestor", "requisitante"],
+  },
+];
 
 const Index = () => {
-  const menuItems = [
-    {
-      icon: Database,
-      title: "CADASTROS",
-      description: "Gerencie cadastros básicos: UNIDADES GESTORAS, Agentes Públicos e Orçamento",
-      href: "/cadastros",
-      color: "text-info"
-    },
-    {
-      icon: ShieldAlert,
-      title: "Auditoria (Admin)",
-      description: "Logs de segurança e rastreabilidade de ações",
-      href: "/auditoria",
-      color: "text-destructive"
-    },
-    {
-      icon: FileText,
-      title: "Gestão das Áreas Requisitantes",
-      description: "Cadastre e gerencie as áreas requisitantes e distribua o orçamento anual",
-      href: "/areas-requisitantes",
-      color: "text-primary"
-    },
-    {
-      icon: Package,
-      title: "Catálogo de Itens",
-      description: "Gerencie o catálogo de materiais e serviços",
-      href: "/catalogo-itens",
-      color: "text-secondary"
-    },
-    {
-      icon: ClipboardList,
-      title: "Elaboração de DFDs",
-      description: "Crie e gerencie Documentos de Formalização de Demandas",
-      href: "/dfds",
-      color: "text-accent"
-    },
-    {
-      icon: FolderKanban,
-      title: "Consolidação das Demandas",
-      description: "Consolide demandas por classe ou grupo",
-      href: "/consolidacao",
-      color: "text-info"
-    },
-    {
-      icon: BarChart3,
-      title: "Formação do PCA",
-      description: "Forme o Plano de Contratação Anual",
-      href: "/formacao-pca",
-      color: "text-warning"
-    },
-    {
-      icon: CheckCircle2,
-      title: "Aprovação do PCA",
-      description: "Aprovar e acompanhar o Plano de Contratação Anual",
-      href: "/aprovacao-pca",
-      color: "text-success"
-    },
-    {
-      icon: FileCode,
-      title: "Modelos e Minutas",
-      description: "Biblioteca de modelos (ETP, TR, Contratos) para download",
-      href: "/modelos",
-      color: "text-purple-600"
-    }
-  ];
+  const { perfil, user } = useRBAC();
+
+  const visibleCards = allCards.filter(
+    (card) => perfil && card.roles.includes(perfil)
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -81,7 +105,9 @@ const Index = () => {
               <p className="text-sm text-muted-foreground">Planejamento e Gerenciamento de Contratações</p>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">Bem-vindo ao sistema</span>
+              <span className="text-sm text-muted-foreground">
+                {user?.email ? `Bem-vindo, ${user.email}` : "Bem-vindo ao sistema"}
+              </span>
             </div>
           </div>
         </div>
@@ -100,7 +126,7 @@ const Index = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {menuItems.map((item) => (
+          {visibleCards.map((item) => (
             <Link key={item.href} to={item.href}>
               <Card className="hover:shadow-lg transition-all duration-300 hover:border-primary h-full cursor-pointer">
                 <CardHeader>

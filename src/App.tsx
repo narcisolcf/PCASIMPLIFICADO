@@ -1,27 +1,35 @@
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Suspense, lazy } from "react";
-import { MainLayout } from "./components/MainLayout";
 import { Loader2 } from "lucide-react";
+import { MainLayout } from "./components/MainLayout";
+import { PrivateRoute } from "./components/PrivateRoute";
+import { RoleRoute } from "./components/RoleRoute";
 
 // Lazy load pages
 const Login = lazy(() => import("./pages/Login"));
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+
+// Operacional (todos os perfis)
 const AreasRequisitantes = lazy(() => import("./pages/AreasRequisitantes"));
+const CatalogoItens = lazy(() => import("./pages/CatalogoItens"));
 const DFDs = lazy(() => import("./pages/DFDs"));
 const NovoDFD = lazy(() => import("./pages/NovoDFD"));
+const ModelsPage = lazy(() => import("./pages/ModelsPage"));
+
+// Gestão (admin + gestor)
 const Consolidacao = lazy(() => import("./pages/Consolidacao"));
 const FormacaoPCA = lazy(() => import("./pages/FormacaoPCA"));
 const AprovacaoPCA = lazy(() => import("./pages/AprovacaoPCA"));
-const CatalogoItens = lazy(() => import("./pages/CatalogoItens"));
+
+// Administração (admin)
 const Cadastros = lazy(() => import("./pages/Cadastros"));
 const AgentesPublicos = lazy(() => import("./pages/AgentesPublicos"));
 const UnidadesGestoras = lazy(() => import("./pages/UnidadesGestoras"));
 const Orcamento = lazy(() => import("./pages/Orcamento"));
 const Cargos = lazy(() => import("./pages/Cargos"));
-const ModelsPage = lazy(() => import("./pages/ModelsPage"));
 const AuditLogs = lazy(() => import("./pages/AuditLogs"));
 
 const queryClient = new QueryClient({
@@ -38,9 +46,6 @@ const LoadingFallback = () => (
     <Loader2 className="h-8 w-8 animate-spin text-primary" />
   </div>
 );
-
-import { PrivateRoute } from "./components/PrivateRoute";
-import { RoleRoute } from "./components/RoleRoute";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
