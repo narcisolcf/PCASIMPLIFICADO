@@ -4,6 +4,8 @@ import { ArrowLeft, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 import { FormularioPCA } from "@/components/formulario/FormularioPCA";
 import { RelatorioPCADownload } from "@/components/relatorios/RelatorioPCADownload";
+import { ExportarPCAJSON } from "@/components/relatorios/ExportarPCAJSON";
+import { ListagemPCA } from "@/components/relatorios/ListagemPCA";
 
 const FormacaoPCA = () => {
   const nextYear = new Date().getFullYear() + 1;
@@ -27,7 +29,10 @@ const FormacaoPCA = () => {
                 Plano de Contratações Anual - Requisição de Materiais, Serviços e Obras
               </p>
             </div>
-            <RelatorioPCADownload />
+            <div className="flex gap-2">
+              <ExportarPCAJSON />
+              <RelatorioPCADownload />
+            </div>
           </div>
         </div>
       </header>
@@ -68,6 +73,9 @@ const FormacaoPCA = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Listagem de Requisições Existentes */}
+        <ListagemPCA />
 
         {/* Formulário PCA */}
         <FormularioPCA />

@@ -78,8 +78,10 @@ const Consolidacao = () => {
             prioridade,
             situacao,
             area_requisitante_id,
-            areas_requisitantes (nome),
-            uasgs (nome)
+            areas_requisitantes (
+              nome,
+              uasgs (nome)
+            )
           )
         `)
         .neq('dfds.situacao', 'Rascunho'); // Only finalized DFDs
@@ -126,7 +128,7 @@ const Consolidacao = () => {
           id: item.id,
           dfd_numero: dfd.numero,
           dfd_ano: dfdYear,
-          uasg_nome: dfd.uasgs?.nome || "N/A",
+          uasg_nome: dfd.areas_requisitantes?.uasgs?.nome || "N/A",
           area_nome: dfd.areas_requisitantes?.nome || "N/A",
           descricao_item: item.descricao,
           data_conclusao: dfd.data_conclusao,

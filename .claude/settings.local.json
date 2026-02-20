@@ -22,7 +22,9 @@
       "Bash(brew install:*)",
       "Bash(npm run lint:*)",
       "Bash(npm audit:*)",
-      "Bash(vercel:*)"
+      "Bash(vercel:*)",
+      "Bash(git checkout:*)",
+      "Bash(git status:*)"
     ],
     "deny": [],
     "ask": []

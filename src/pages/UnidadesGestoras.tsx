@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { ArrowLeft, Plus, Edit, Trash2, Save } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { useUASGs } from "@/hooks/useUASGs";
+import { useUASGs, UASG } from "@/hooks/useUASGs";
 import { useAgentesPublicos } from "@/hooks/useAgentesPublicos";
 import { useUnidadesOrcamentarias } from "@/hooks/useUnidadesOrcamentarias";
 import { useRubricas } from "@/hooks/useRubricas";
@@ -99,7 +99,7 @@ const UnidadesGestoras = () => {
     setNewRubrica({ codigo: "", descricao: "" });
   };
 
-  const handleEdit = (uasg: any) => {
+  const handleEdit = (uasg: UASG) => {
     setEditingUasg(uasg.id);
     setFormData({
       numero_uasg: uasg.numero_uasg,
