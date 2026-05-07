@@ -7,15 +7,23 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-export type TipoItem = "Material" | "Serviço" | "Obra" | "Serviço de Engenharia";
-export type GrauPrioridade = "Alta" | "Média" | "Baixa";
+// Tipos compatíveis com o enum do banco de dados (tipo_material_servico) - Atualizado PCA 2026
+export type TipoItem = "Material" | "Serviço" | "Material Permanente" | "Material de Consumo" | "Obra" | "Serviço de Engenharia";
+export type GrauPrioridade = "Altíssima" | "Alta" | "Média" | "Baixa";
+export type ExpectativaContratacao =
+  | "Janeiro" | "Fevereiro" | "Março" | "Abril" | "Maio" | "Junho"
+  | "Julho" | "Agosto" | "Setembro" | "Outubro" | "Novembro" | "Dezembro"
+  | "No Primeiro Trimestre" | "No Segundo Trimestre" | "No Terceiro Trimestre" | "No Quarto Trimestre"
+  | "Até o Primeiro Trimestre" | "Até o Segundo Trimestre" | "Até o Terceiro Trimestre" | "Até o Quarto Trimestre";
 
 export interface DadosRequisitante {
   unidadeGestoraId: string;
   unidadeGestoraNome: string;
+  numeroUasg: string; // Adicionado: número da UASG (obrigatório para DFD)
   areaRequisitanteId: string;
   areaRequisitanteNome: string;
   responsavel: string;
+  cpf: string; // Adicionado: CPF do responsável (obrigatório para responsaveis)
   cargo: string;
   email: string;
   telefone: string;
@@ -29,7 +37,10 @@ export interface ItemContratacao {
   quantidade: number;
   valorUnitario: number;
   valorTotal: number;
+  valorPreliminar: number; // Novo campo PCA 2026
   prioridade: GrauPrioridade;
+  expectativaConsumo: string; // Novo campo PCA 2026 (ex: "12 MESES", "NÃO SE APLICA")
+  expectativaContratacao: ExpectativaContratacao; // Novo campo PCA 2026
   dataPretendida: string;
   justificativa: string;
 }
@@ -53,9 +64,11 @@ interface ResultadoEnvio {
 const REQUISITANTE_INICIAL: DadosRequisitante = {
   unidadeGestoraId: "",
   unidadeGestoraNome: "",
+  numeroUasg: "",
   areaRequisitanteId: "",
   areaRequisitanteNome: "",
   responsavel: "",
+  cpf: "",
   cargo: "",
   email: "",
   telefone: "",
@@ -64,13 +77,16 @@ const REQUISITANTE_INICIAL: DadosRequisitante = {
 function criarItemVazio(): ItemContratacao {
   return {
     id: crypto.randomUUID(),
-    tipo: "Material",
+    tipo: "Material de Consumo",
     descricao: "",
     unidadeFornecimento: "UN",
     quantidade: 1,
     valorUnitario: 0,
     valorTotal: 0,
+    valorPreliminar: 0,
     prioridade: "Média",
+    expectativaConsumo: "12 MESES",
+    expectativaContratacao: "No Primeiro Trimestre",
     dataPretendida: "",
     justificativa: "",
   };
@@ -111,6 +127,14 @@ export function useFormularioPCA() {
     }
     if (!requisitante.telefone.trim()) {
       novosErros.requisitante = { ...novosErros.requisitante, telefone: "Telefone é obrigatório" };
+    }
+    if (!requisitante.cpf.trim()) {
+      novosErros.requisitante = { ...novosErros.requisitante, cpf: "CPF é obrigatório" };
+    } else if (!/^\d{11}$/.test(requisitante.cpf.replace(/\D/g, ""))) {
+      novosErros.requisitante = { ...novosErros.requisitante, cpf: "CPF inválido (deve ter 11 dígitos)" };
+    }
+    if (!requisitante.numeroUasg.trim()) {
+      novosErros.requisitante = { ...novosErros.requisitante, numeroUasg: "Número UASG é obrigatório" };
     }
 
     // Validar itens
@@ -174,6 +198,7 @@ export function useFormularioPCA() {
         .insert([
           {
             user_id: user.id,
+            numero_uasg: requisitante.numeroUasg, // Campo obrigatório
             area_requisitante_id: requisitante.areaRequisitanteId,
             descricao_sucinta: `Requisição PCA - ${requisitante.unidadeGestoraNome}`,
             justificativa_necessidade: `Requisição criada por ${requisitante.responsavel} (${requisitante.cargo})`,
@@ -206,13 +231,14 @@ export function useFormularioPCA() {
 
       if (itensError) throw itensError;
 
-      // Criar registro de responsável
+      // Criar registro de responsável (tabela correta: responsaveis)
       const { error: respError } = await supabase
-        .from("responsaveis_dfd")
+        .from("responsaveis")
         .insert([
           {
             dfd_id: pcaData.id,
             nome: requisitante.responsavel,
+            cpf: requisitante.cpf.replace(/\D/g, ""), // CPF apenas números (obrigatório)
             cargo: requisitante.cargo,
             email: requisitante.email,
             telefone: requisitante.telefone,
