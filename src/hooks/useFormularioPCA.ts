@@ -7,9 +7,14 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-// Tipos compatíveis com o enum do banco de dados (tipo_material_servico)
-export type TipoItem = "Material" | "Serviço";
-export type GrauPrioridade = "Alta" | "Média" | "Baixa";
+// Tipos compatíveis com o enum do banco de dados (tipo_material_servico) - Atualizado PCA 2026
+export type TipoItem = "Material" | "Serviço" | "Material Permanente" | "Material de Consumo" | "Obra" | "Serviço de Engenharia";
+export type GrauPrioridade = "Altíssima" | "Alta" | "Média" | "Baixa";
+export type ExpectativaContratacao =
+  | "Janeiro" | "Fevereiro" | "Março" | "Abril" | "Maio" | "Junho"
+  | "Julho" | "Agosto" | "Setembro" | "Outubro" | "Novembro" | "Dezembro"
+  | "No Primeiro Trimestre" | "No Segundo Trimestre" | "No Terceiro Trimestre" | "No Quarto Trimestre"
+  | "Até o Primeiro Trimestre" | "Até o Segundo Trimestre" | "Até o Terceiro Trimestre" | "Até o Quarto Trimestre";
 
 export interface DadosRequisitante {
   unidadeGestoraId: string;
@@ -32,7 +37,10 @@ export interface ItemContratacao {
   quantidade: number;
   valorUnitario: number;
   valorTotal: number;
+  valorPreliminar: number; // Novo campo PCA 2026
   prioridade: GrauPrioridade;
+  expectativaConsumo: string; // Novo campo PCA 2026 (ex: "12 MESES", "NÃO SE APLICA")
+  expectativaContratacao: ExpectativaContratacao; // Novo campo PCA 2026
   dataPretendida: string;
   justificativa: string;
 }
@@ -69,13 +77,16 @@ const REQUISITANTE_INICIAL: DadosRequisitante = {
 function criarItemVazio(): ItemContratacao {
   return {
     id: crypto.randomUUID(),
-    tipo: "Material",
+    tipo: "Material de Consumo",
     descricao: "",
     unidadeFornecimento: "UN",
     quantidade: 1,
     valorUnitario: 0,
     valorTotal: 0,
+    valorPreliminar: 0,
     prioridade: "Média",
+    expectativaConsumo: "12 MESES",
+    expectativaContratacao: "No Primeiro Trimestre",
     dataPretendida: "",
     justificativa: "",
   };

@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, AlertCircle, FileText } from "lucide-react";
-import { ItemContratacao as ItemType, TipoItem, GrauPrioridade } from "@/hooks/useFormularioPCA";
+import { ItemContratacao as ItemType, TipoItem, GrauPrioridade, ExpectativaContratacao } from "@/hooks/useFormularioPCA";
 
 interface Props {
   item: ItemType;
@@ -21,16 +21,44 @@ interface Props {
   podeRemover: boolean;
 }
 
-// Tipos compatíveis com o enum do banco de dados (tipo_material_servico)
+// Tipos atualizados para PCA 2026
 const TIPOS_ITEM: Array<{ valor: TipoItem; texto: string }> = [
-  { valor: "Material", texto: "Material" },
+  { valor: "Material de Consumo", texto: "Material de Consumo" },
+  { valor: "Material Permanente", texto: "Material Permanente" },
   { valor: "Serviço", texto: "Serviço" },
+  { valor: "Obra", texto: "Obra" },
+  { valor: "Serviço de Engenharia", texto: "Serviço de Engenharia" },
+  { valor: "Material", texto: "Material (Genérico)" },
 ];
 
 const PRIORIDADES: Array<{ valor: GrauPrioridade; texto: string; cor: string }> = [
+  { valor: "Altíssima", texto: "Altíssima", cor: "destructive" },
   { valor: "Alta", texto: "Alta", cor: "destructive" },
   { valor: "Média", texto: "Média", cor: "default" },
   { valor: "Baixa", texto: "Baixa", cor: "secondary" },
+];
+
+const EXPECTATIVAS_CONTRATACAO: Array<{ valor: ExpectativaContratacao; texto: string }> = [
+  { valor: "Janeiro", texto: "Janeiro" },
+  { valor: "Fevereiro", texto: "Fevereiro" },
+  { valor: "Março", texto: "Março" },
+  { valor: "Abril", texto: "Abril" },
+  { valor: "Maio", texto: "Maio" },
+  { valor: "Junho", texto: "Junho" },
+  { valor: "Julho", texto: "Julho" },
+  { valor: "Agosto", texto: "Agosto" },
+  { valor: "Setembro", texto: "Setembro" },
+  { valor: "Outubro", texto: "Outubro" },
+  { valor: "Novembro", texto: "Novembro" },
+  { valor: "Dezembro", texto: "Dezembro" },
+  { valor: "No Primeiro Trimestre", texto: "No Primeiro Trimestre" },
+  { valor: "No Segundo Trimestre", texto: "No Segundo Trimestre" },
+  { valor: "No Terceiro Trimestre", texto: "No Terceiro Trimestre" },
+  { valor: "No Quarto Trimestre", texto: "No Quarto Trimestre" },
+  { valor: "Até o Primeiro Trimestre", texto: "Até o Primeiro Trimestre" },
+  { valor: "Até o Segundo Trimestre", texto: "Até o Segundo Trimestre" },
+  { valor: "Até o Terceiro Trimestre", texto: "Até o Terceiro Trimestre" },
+  { valor: "Até o Quarto Trimestre", texto: "Até o Quarto Trimestre" },
 ];
 
 export function ItemContratacao({ item, numero, onChange, onRemover, podeRemover }: Props) {
@@ -193,10 +221,61 @@ export function ItemContratacao({ item, numero, onChange, onRemover, podeRemover
             />
           </div>
 
+          {/* Valor Preliminar - PCA 2026 */}
+          <div>
+            <Label htmlFor={`valorPreliminar-${item.id}`}>
+              Valor Preliminar (R$)
+            </Label>
+            <Input
+              id={`valorPreliminar-${item.id}`}
+              type="number"
+              min="0"
+              step="0.01"
+              value={item.valorPreliminar || ""}
+              onChange={(e) => handleChange("valorPreliminar", Number(e.target.value))}
+              placeholder="Valor total preliminar"
+            />
+          </div>
+
+          {/* Expectativa de Consumo - PCA 2026 */}
+          <div>
+            <Label htmlFor={`expectativaConsumo-${item.id}`}>
+              Expectativa de Consumo
+            </Label>
+            <Input
+              id={`expectativaConsumo-${item.id}`}
+              value={item.expectativaConsumo || ""}
+              onChange={(e) => handleChange("expectativaConsumo", e.target.value)}
+              placeholder="Ex: 12 MESES, NÃO SE APLICA"
+            />
+          </div>
+
+          {/* Expectativa de Contratação - PCA 2026 */}
+          <div>
+            <Label htmlFor={`expectativaContratacao-${item.id}`}>
+              Expectativa de Contratação <span className="text-destructive">*</span>
+            </Label>
+            <Select
+              value={item.expectativaContratacao}
+              onValueChange={(value) => handleChange("expectativaContratacao", value as ExpectativaContratacao)}
+            >
+              <SelectTrigger id={`expectativaContratacao-${item.id}`}>
+                <SelectValue placeholder="Selecione..." />
+              </SelectTrigger>
+              <SelectContent>
+                {EXPECTATIVAS_CONTRATACAO.map((exp) => (
+                  <SelectItem key={exp.valor} value={exp.valor}>
+                    {exp.texto}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Data Pretendida */}
-          <div className="md:col-span-2">
+          <div>
             <Label htmlFor={`dataPretendida-${item.id}`}>
-              Data Pretendida para Contratação <span className="text-destructive">*</span>
+              Data Pretendida para Contratação
             </Label>
             <Input
               id={`dataPretendida-${item.id}`}
